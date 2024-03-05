@@ -54,25 +54,25 @@ num_training_samples = 303331
 
 # Function
 
-def get_iter_dataset(x_train, y_train, task=None):
+def get_iter_dataset(x_train, y_train, task, nb_inc=None):
    if task is not None:
     if task == 0:
-      selected_indices = np.where(y_train < 50)[0]
+      selected_indices = np.where(y_train < init_classes)[0]
       return x_train[selected_indices], y_train[selected_indices]
     else:
-      start = 50 + (task-1) * 5
-      end = 50 + task * 5
-      selected_indices = np.where((y_train >= start) & (y_train) < end)
+      start = init_classes + (task-1) * nb_inc
+      end = init_classes + task * nb_inc
+      selected_indices = np.where((y_train >= start) & (y_train < end))
       return x_train[selected_indices], y_train[selected_indices]
-   
+
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
-      print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
+      # print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
 
       # y_real and y_fake are the label for fake and true data
       y_real_ = Variable(torch.ones(x_.size(0), 1))
       y_fake_ = Variable(torch.zeros(x_.size(0), 1))
-      print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
+      # print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
 
       if use_cuda:
         y_real_, y_fake_ = y_real_.cuda(0), y_fake_.cuda(0)
@@ -88,15 +88,15 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       D_optimizer.zero_grad()
 
       D_real = D(x_)
-      print("D_real shape", D_real.shape) # [16, 1]
-      print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
+      # print("D_real shape", D_real.shape) # [16, 1]
+      # print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
       D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
       G_ = G(z_)
-      print('G_ shape', G_.shape) # 16, 1, 1
+      # print('G_ shape', G_.shape) # 16, 1, 1
       D_fake = D(G_)
-      print("D_fake shape", D_fake.shape)
-      print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape)
+      # print("D_fake shape", D_fake.shape)
+      # print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape)
       D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
       D_loss = D_real_loss + D_fake_loss
@@ -117,7 +117,7 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update C
 
       C_optimizer.zero_grad()
-
+      # print("y_ shape", y_.shape)
       output = C(x_)
 
       C_loss = criterion(output, y_)
@@ -127,13 +127,18 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
 
       return output
 
-def get_replay_with_label(generator, classifier, batchsize, task):
+def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
     images_list = []
     labels_list = []
-    task_label = [[] for _ in range(50 + task * 5)]
+    task_label = [[] for _ in range(init_classes + (task-1) * nb_inc)]
 
     while True:
         if all(len(r) >= batchsize for r in task_label):
+            print("len(r)", len(r))
+        # Checks whether there are at least 'batchsize' samples for each label in 'task_label'
+        # The variable 'r' represents each innter list in 'task_label'
+        # 'r' is a reference to one of the inner lists in 'task_label'
+        # The loop continues until the condition is met for all inner lists, ensuring that each label has at least 'batchsize' samples.
             break
         z_ = Variable(torch.rand((batchsize, z_dim)))
 
@@ -160,10 +165,10 @@ def get_replay_with_label(generator, classifier, batchsize, task):
 init_classes = 50
 final_classes = 100
 nb_task = 11
-add_ = 5
+nb_inc = 5
 batchsize=16
 lr = 0.001
-epoch_number = 10
+epoch_number = 5
 z_dim = 62
 
 
@@ -195,26 +200,28 @@ D.reinit()
 
 for task in range(nb_task):
   # Load data for the current task
-  x_, y_ = get_iter_dataset(X_train_100, Y_train_100, task)
+  x_, y_ = get_iter_dataset(X_train_100, Y_train_100, task=task, nb_inc=nb_inc)
   nb_batch = int(len(x_)/batchsize)
 
   for epoch in range(epoch_number):
     for index in range(nb_batch):
       x_ = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
       y_ = torch.FloatTensor(y_[index*batchsize:(index+1)*batchsize])
-
+      y_ = y_.view(-1, 1)
       if task > 0 :
         # We concat a batch of previously learned data
         # the more there is past task more data need to be regenerate
-        replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task)
+        replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
         x_=torch.cat((x_,replay),0)
         y_=torch.cat((y_,re_label),0)
 
       run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_)
+    print("epoch:", epoch)
 
   G_saved = deepcopy(G)
   C_saved = deepcopy(C)
 
+  print("task", task, "done")
   # z_ = Variable(torch.rand((nb_samples, z_dim)))
 
     
