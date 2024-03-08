@@ -57,13 +57,14 @@ num_training_samples = 303331
 def get_iter_dataset(x_train, y_train, task, nb_inc=None):
    if task is not None:
     if task == 0:
-      selected_indices = np.where(y_train < init_classes)[0]
-      return x_train[selected_indices], y_train[selected_indices]
+       selected_indices = np.where(y_train < init_classes)[0]
+       return x_train[selected_indices], y_train[selected_indices]  
     else:
-      start = init_classes + (task-1) * nb_inc
-      end = init_classes + task * nb_inc
-      selected_indices = np.where((y_train >= start) & (y_train < end))
-      return x_train[selected_indices], y_train[selected_indices]
+       start = init_classes + (task-1) * nb_inc
+       end = init_classes + task * nb_inc
+       selected_indices = np.where((y_train >= start) & (y_train < end))
+       return x_train[selected_indices], y_train[selected_indices]
+    
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
@@ -119,6 +120,8 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       C_optimizer.zero_grad()
       # print("y_ shape", y_.shape)
       output = C(x_)
+      if use_cuda:
+         output = output.cuda(0)
 
       C_loss = criterion(output, y_)
 
@@ -134,7 +137,6 @@ def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
 
     while True:
         if all(len(r) >= batchsize for r in task_label):
-            print("len(r)", len(r))
         # Checks whether there are at least 'batchsize' samples for each label in 'task_label'
         # The variable 'r' represents each innter list in 'task_label'
         # 'r' is a reference to one of the inner lists in 'task_label'
@@ -147,13 +149,19 @@ def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
 
         images = generator(z_)
         labels = classifier.predict(images)
-
+        print(labels)
+        
         for i in range(len(labels)):
             label = labels[i]
+            print(label)
             if len(task_label[label]) < batchsize:
                 images_list.append(images[i].unsqueeze(0))
                 labels_list.append(label.item())
                 task_label[label].append(label.item())
+
+        for i in range(len(task_label)):
+            print("task_label:", i, "-", len(task_label[i]))
+                
 
     images = torch.cat(images_list, dim=0)
     labels = torch.tensor(labels_list)
@@ -164,8 +172,8 @@ def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
 
 init_classes = 50
 final_classes = 100
-nb_task = 11
-nb_inc = 5
+nb_inc = 25
+nb_task = int(((final_classes - init_classes) / nb_inc) + 1)
 batchsize=16
 lr = 0.001
 epoch_number = 5
@@ -206,8 +214,10 @@ for task in range(nb_task):
   for epoch in range(epoch_number):
     for index in range(nb_batch):
       x_ = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
-      y_ = torch.FloatTensor(y_[index*batchsize:(index+1)*batchsize])
-      y_ = y_.view(-1, 1)
+      y_ = torch.LongTensor(y_[index*batchsize:(index+1)*batchsize])
+      
+      # print("y_ shape", y_.shape)
+
       if task > 0 :
         # We concat a batch of previously learned data
         # the more there is past task more data need to be regenerate
