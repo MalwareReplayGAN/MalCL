@@ -110,7 +110,7 @@ class Classifier(nn.Module):
         self.input_features = 2381
         self.input_channel = 1
         self.output_channel = 128
-        self.output_dim = 1
+        self.output_dim = 100
 
         self.conv = nn.Sequential(
             nn.Conv1d(self.input_channel, self.output_channel, kernel_size=3, padding=1),
@@ -126,8 +126,8 @@ class Classifier(nn.Module):
         x = x.view(-1, self.output_channel * self.input_features)
         # print("3-", x.shape)
         x = self.fc(x)
-        # print("4-", x.shape)
-        x = x.view(-1, self.output_dim)
+        # print("5-", x.shape)
+        #x = x.view(-1, self.output_dim)
         # print("5-", x.shape)
         # print("C")
         return x
