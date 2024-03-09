@@ -48,7 +48,7 @@ torch.manual_seed(0);
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train, X_test, Y_test = get_ember_data(data_dir)
-X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
+# X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
 feats_length= 2381
 num_training_samples = 303331
 
@@ -154,7 +154,7 @@ def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
         for i in range(len(labels)):
             label = labels[i]
             print(label)
-            if len(task_label[label]) < batchsize:
+            if (label < (init_classes + (task-1) * nb_inc)) and (len(task_label[label]) < batchsize):
                 images_list.append(images[i].unsqueeze(0))
                 labels_list.append(label.item())
                 task_label[label].append(label.item())
@@ -208,7 +208,7 @@ D.reinit()
 
 for task in range(nb_task):
   # Load data for the current task
-  x_, y_ = get_iter_dataset(X_train_100, Y_train_100, task=task, nb_inc=nb_inc)
+  x_, y_ = get_iter_dataset(X_train, Y_train, task=task, nb_inc=nb_inc)
   nb_batch = int(len(x_)/batchsize)
 
   for epoch in range(epoch_number):
@@ -220,7 +220,7 @@ for task in range(nb_task):
 
       if task > 0 :
         # We concat a batch of previously learned data
-        # the more there is past task more data need to be regenerate
+        # the more there are past tasks more data need to be regenerated
         replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
         x_=torch.cat((x_,replay),0)
         y_=torch.cat((y_,re_label),0)
