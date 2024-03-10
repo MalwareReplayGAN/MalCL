@@ -10,29 +10,52 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         self.input_dim = 62
-        self.output_channel_1 = 256
-        self.output_channel_2 = 512
-        self.output_channel_3 = 128
+        self.channel_a = 64
+        self.channel_b = 128
+        self.channel_c = 256
+        self.channel_d = 512
+        self.channel_e = 1024
+        self.channel_f = 2048
+        self.channel_g = 4096
         self.output_features = 2381
 
 
         
-        self.fc = nn.Sequential(
-            nn.Conv1d(self.input_dim, self.output_channel_1, kernel_size=3, padding=1),
-            nn.BatchNorm1d(self.output_channel_1),
+        self.conv = nn.Sequential(
+            nn.Conv1d(self.input_dim, self.channel_c, kernel_size=3, padding=1),
+            nn.BatchNorm1d(self.channel_c),
             nn.ReLU(),
+            nn.Conv1d(self.channel_c, self.channel_e, kernel_size=3, padding=1),
+            nn.BatchNorm1d(self.channel_e),
+            nn.ReLU(),
+            nn.Conv1d(self.channel_e, self.channel_g, kernel_size=3, padding=1),
+            nn.BatchNorm1d(self.channel_g),
+            nn.ReLU(),
+            nn.Conv1d(self.channel_g, self.channel_e, kernel_size=3, padding=1),
+            nn.BatchNorm1d(self.channel_e),
+            nn.ReLU(),
+            
+        )
+        
+        self.fc = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(self.output_channel_1, self.output_channel_2), 
-            nn.BatchNorm1d(self.output_channel_2),
+            nn.Linear(self.channel_e, self.channel_f), 
+            nn.BatchNorm1d(self.channel_f),
+            nn.ReLU(),
+            nn.Linear(self.channel_f, self.channel_g), 
+            nn.BatchNorm1d(self.channel_g),
             nn.ReLU()
         )
 
         self.deconv = nn.Sequential(
-            nn.ConvTranspose1d(self.output_channel_2, self.output_channel_3, 3, padding=1),
-            nn.BatchNorm1d(self.output_channel_3),
+            nn.ConvTranspose1d(self.channel_g, self.channel_e, 3, padding=1),
+            nn.BatchNorm1d(self.channel_e),
             nn.ReLU(),
-            nn.ConvTranspose1d(self.output_channel_3, self.output_features, 3, padding=1),
-            nn.Sigmoid(),
+            nn.ConvTranspose1d(self.channel_e, self.channel_d, 3, padding=1),
+            nn.BatchNorm1d(self.channel_d),
+            nn.ReLU(),
+            nn.ConvTranspose1d(self.channel_d, self.output_features, 3, padding=1),
+            nn.Sigmoid()
         )
 
         self.Sigmoid = nn.Sigmoid()
@@ -44,13 +67,16 @@ class Generator(nn.Module):
     def forward(self, input):
         input = input.view(-1, self.input_dim, 1)
         # print("1-", input.shape) # [batchsize, self.input_dim, 1] 16, 62, 1
-        x = self.fc(input)
-        # print("2-", x.shape) # [batchsize, self.output_channel, 1]16, 256, 1
-        x = x.view(-1, self.output_channel_2, 1)
-        # print("3-", x.shape) # [batchsize, self.output_channel]
+        x = self.conv(input)
+        # print("2-", x.shape) # [batchsize, self.output_channel, 1]16, 512, 1
+        x = self.fc(x)
+        x = x.view(-1, self.channel_g, 1)
+        # print("3-", x.shape) # [batchsize, self.output_channel]16, 512, 1
         x = self.deconv(x) # Given transposed=1, weight of size [self.output_channel]
-        # print("4-", x.shape) # 16, 1, 1
-        return x.view(-1, 1)
+        # print("4-", x.shape) # 16, 2381, 1
+        x = x.view(-1, self.output_features)
+        # print("5-", x.shape) # 16, 2381
+        return x
 
     def weights_init(self, m):
         classname = m.__class__.__name__
@@ -66,21 +92,21 @@ class Discriminator(nn.Module):
 
         self.input_channel = 1
         self.output_dim = 1
-        self.output_channel_1 = 256
-        self.output_channel_2 = 512
+        self.channel_c = 256
+        self.channel_d = 512
         self.input_features = 2381
         self.latent_dim = 1024
 
         self.conv = nn.Sequential(
-            nn.Conv1d(self.input_channel, self.output_channel_1, 3, padding=1),
+            nn.Conv1d(self.input_channel, self.channel_d, 3, padding=1),
             nn.ReLU(),
-            nn.Conv1d(self.output_channel_1, self.output_channel_2, 3, padding=1),
+            nn.Conv1d(self.channel_d, self.channel_c, 3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(self.output_channel_2),
+            nn.BatchNorm1d(self.channel_c),
             
         )
         self.fc = nn.Sequential(
-            nn.Linear(self.output_channel_2 * self.input_features, self.latent_dim),
+            nn.Linear(self.channel_c * self.input_features, self.latent_dim),
             nn.ReLU(),
             nn.BatchNorm1d(self.latent_dim),
             nn.Linear(self.latent_dim, self.output_dim),
@@ -105,7 +131,7 @@ class Discriminator(nn.Module):
         # print("1-", x.shape) # [16, 1, 2381]
         x = self.conv(x)
         # print("2-", x.shape) # [16, 512, 2381]
-        x = x.view(-1, self.output_channel_2 * self.input_features)
+        x = x.view(-1, self.channel_c * self.input_features)
         # print("3-", x.shape) # [16, 512*2381]
         x = self.fc(x)
         # print("4-", x.shape) # [16, 1]
@@ -117,35 +143,35 @@ class Classifier(nn.Module):
 
         self.input_features = 2381
         self.input_channel = 1
-        self.output_channel_1 = 128
-        self.output_channel_2 = 256
-        self.output_channel_3 = 512
+        self.channel_b = 128
+        self.channel_c = 256
+        self.channel_d = 512
         self.output_dim = 100
         self.drop_prob = 0.3
 
         self.conv = nn.Sequential(
-            nn.Conv1d(self.input_channel, self.output_channel_1, kernel_size=3, padding=1),
+            nn.Conv1d(self.input_channel, self.channel_d, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(self.output_channel_1),
+            nn.BatchNorm1d(self.channel_d),
             nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.output_channel_1, self.output_channel_2, kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_d, self.channel_c, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(self.output_channel_2),
+            nn.BatchNorm1d(self.channel_c),
             nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.output_channel_2, self.output_channel_3, kernel_size=3, padding=1),
+            nn.Conv1d(self.channel_c, self.channel_b, kernel_size=3, padding=1),
             nn.ReLU(),
-            nn.BatchNorm1d(self.output_channel_3),
+            nn.BatchNorm1d(self.channel_b),
             nn.Dropout(self.drop_prob),
             nn.Flatten())
 
-        self.fc = nn.Linear(self.output_channel_3 * self.input_features, self.output_dim)
+        self.fc = nn.Linear(self.channel_b * self.input_features, self.output_dim)
 
     def forward(self, x):
         x = x.view(-1, self.input_channel, self.input_features)
         # print("1-", x.shape)
         x = self.conv(x)
         # print("2-", x.shape)
-        x = x.view(-1, self.output_channel_3 * self.input_features)
+        x = x.view(-1, self.channel_b * self.input_features)
         # print("3-", x.shape)
         x = self.fc(x)
         # print("5-", x.shape)

@@ -102,12 +102,12 @@ def get_iter_dataset(x_train, y_train, task, nb_inc=None):
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
-      print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
+      # print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
 
       # y_real and y_fake are the label for fake and true data
       y_real_ = Variable(torch.ones(x_.size(0), 1))
       y_fake_ = Variable(torch.zeros(x_.size(0), 1))
-      print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
+      # print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
 
       if use_cuda:
         y_real_, y_fake_ = y_real_.cuda(0), y_fake_.cuda(0)
@@ -123,15 +123,15 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       D_optimizer.zero_grad()
 
       D_real = D(x_)
-      print("D_real shape", D_real.shape) # [16, 1]
-      print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
+      # print("D_real shape", D_real.shape) # [16, 1]
+      # print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
       D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
       G_ = G(z_)
-      print('G_ shape', G_.shape) # 16, 2381
+      # print('G_ shape', G_.shape) # 16, 2381
       D_fake = D(G_)
-      print("D_fake shape", D_fake.shape) # 16, 1
-      print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape) # 16, 1
+      # print("D_fake shape", D_fake.shape) # 16, 1
+      # print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape) # 16, 1
       D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
       D_loss = D_real_loss + D_fake_loss
@@ -152,7 +152,7 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update C
 
       C_optimizer.zero_grad()
-      print("y_ shape", y_.shape) # 16
+      # print("y_ shape", y_.shape) # 16
       output = C(x_)
       if use_cuda:
          output = output.cuda(0)
@@ -213,14 +213,14 @@ for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train_100, Y_train_100, task=task, nb_inc=nb_inc)
   nb_batch = int(len(x_)/batchsize)
-  print("nb_batch", nb_batch)
+  # print("nb_batch", nb_batch)
   for epoch in range(epoch_number):
     for index in range(nb_batch):
-      print("index", index)
-      x_ = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
-      print(x_.shape)
-      y_ = torch.LongTensor(y_[index*batchsize:(index+1)*batchsize])
-      print(y_.shape)
+      # print("index", index)
+      current_x = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
+      # print(current_x.shape)
+      current_y = torch.LongTensor(y_[index*batchsize:(index+1)*batchsize])
+      # print(current_y.shape)
       
       # print("y_ shape", y_.shape)
 
@@ -228,11 +228,11 @@ for task in range(nb_task):
         # We concat a batch of previously learned data
         # the more there are past tasks more data need to be regenerated
         replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
-        print(x_.shape, replay.shape, re_label.shape)
-        x_=torch.cat((x_,replay),0)
-        y_=torch.cat((y_,re_label),0)
+        print(current_x.shape, replay.shape, re_label.shape)
+        current_x=torch.cat((current_x,replay),0)
+        current_y=torch.cat((current_y,re_label),0)
 
-      run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_)
+      run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, current_x, current_y)
     print("epoch:", epoch)
 
   G_saved = deepcopy(G)
