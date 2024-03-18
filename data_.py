@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import numpy as np
 import torch
 import torch.nn as nn
@@ -21,6 +22,25 @@ def get_ember_test_data(data_dir):
 # 각 레이블 당 100개씩만 데이터 뽑기
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
+=======
+import copy
+import numpy as np
+from sklearn.utils import shuffle
+from torchvision import datasets, transforms
+from torch.utils.data import ConcatDataset, Dataset
+import torch
+from sklearn.preprocessing import StandardScaler
+
+def get_ember_data(data_dir):
+
+    XY_train = np.load(data_dir + '/XY_train.npz')
+    X_train, Y_train = XY_train['X_train'], XY_train['Y_train']
+
+    XY_test = np.load(data_dir + '/XY_test.npz')
+    X_test, Y_test = XY_test['X_test'], XY_test['Y_test']
+
+    return X_train, Y_train, X_test, Y_test
+>>>>>>> 7cacb0c84a28d4f7d18f1547c8256609b0e74c19
 
 def extract_100data(X_train, Y_train):
 
