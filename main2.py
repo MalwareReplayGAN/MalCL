@@ -162,43 +162,62 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
 
       return output
 
-def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
-    images_list = []
-    labels_list = []
-    task_label = [[] for _ in range(init_classes + (task-1) * nb_inc)]
+# def get_replay_with_label(generator, classifier, batchsize, task, nb_inc):
+    
+#     images_list = []
+#     labels_list = []
 
-    while True:
-        if all(len(r) >= batchsize for r in task_label):
-        # Checks whether there are at least 'batchsize' samples for each label in 'task_label'
-        # The variable 'r' represents each innter list in 'task_label'
-        # 'r' is a reference to one of the inner lists in 'task_label'
-        # The loop continues until the condition is met for all inner lists, ensuring that each label has at least 'batchsize' samples.
-            break
-        z_ = Variable(torch.rand((batchsize, z_dim)))
+#     for class_idx in range(task*nb_inc):
+#         images_to_generate = batchsize
 
-        if use_cuda:
-            z_ = z_.cuda(0)
+#         while images_to_generate > 0:
 
-        images = generator(z_)
-        labels = classifier.predict(images)
-        
-        for i in range(len(labels)):
-            label = labels[i]
-            # print(label)
-            if (label < (init_classes + (task-1) * nb_inc)) and (len(task_label[label]) < batchsize):
-                images_list.append(images[i].unsqueeze(0))
-                labels_list.append(label.item())
-                task_label[label].append(label.item())
+#             if images_to_generate == 1:
+#               z_ = Variable(torch.rand((min(2, batchsize), z_dim)))
 
-        for i in range(len(task_label)):
-            print("task_label:", i, "-", len(task_label[i]))
-                
+#               if use_cuda:
+#                   z_ = z_.cuda(0)
 
-    images = torch.cat(images_list, dim=0)
-    labels = torch.tensor(labels_list)
+#               images = generator(z_)
+#               label = classifier.predict(images)
 
-    return images.cpu(), labels.cpu()
+#               class_images = images[label == class_idx]
+#               class_labels = label[label == class_idx]
 
+#               if len(class_images) > 0:
+#                 images_list.append(class_images[0:1])
+#                 labels_list.append(class_labels[0:1])
+#                 images_to_generate -= class_images.size(0)
+
+#             else:
+#               z_ = Variable(torch.rand((min(images_to_generate, batchsize), z_dim)))
+
+#               if use_cuda:
+#                   z_ = z_.cuda(0)
+
+#               images = generator(z_)
+#               label = classifier.predict(images)
+
+#               class_images = images[label == class_idx]
+#               class_labels = label[label == class_idx]
+
+#               images_list.append(class_images)
+#               labels_list.append(class_labels)
+#               images_to_generate -= class_images.size(0)
+
+#     images = torch.cat(images_list, dim=0)
+#     labels = torch.cat(labels_list, dim=0)
+
+#     return images.cpu(), labels.cpu()
+
+
+def get_replay_with_label(generator, classifier, batchsize):
+  z_ = Variable(torch.rand((batchsize, z_dim)))
+  if use_cuda:
+    z_ = z_.cuda(0)
+  images = generator(z_)
+  label = classifier.predict(images)
+  return images.cpu(), label.cpu()
 
 
 
@@ -225,7 +244,8 @@ for task in range(nb_task):
       if task > 0 :
         # We concat a batch of previously learned data
         # the more there are past tasks more data need to be regenerated
-        replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
+        # replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
+        replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
         # print(x_i.shape, replay.shape, re_label.shape)
         x_i=torch.cat((x_i,replay),0)
         y_i=torch.cat((y_i,re_label),0)
@@ -241,6 +261,6 @@ for task in range(nb_task):
 
 
 
-PATH = "/home/02mjpark/ConvGAN/SAVE/mdl_100.pt"
+PATH = "/home/02mjpark/ConvGAN/SAVE/mdl_100_2.pt"
 torch.save(C.state_dict(), PATH)
 
