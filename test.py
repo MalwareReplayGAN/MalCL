@@ -8,55 +8,104 @@ use_cuda = use_cuda and torch.cuda.is_available()
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
-
+    
 class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
 
         self.input_features = 2381
-        self.input_channel = 1
-        self.channel_b = 128
-        self.channel_c = 256
-        self.channel_d = 512
+        # self.input_channel = 1
         self.output_dim = 100
-        self.drop_prob = 0.3
+        self.drop_prob = 0.5
 
-        self.conv = nn.Sequential(
-            nn.Conv1d(self.input_channel, self.channel_d, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_d),
-            nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.channel_d, self.channel_c, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_c),
-            nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.channel_c, self.channel_b, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_b),
-            nn.Dropout(self.drop_prob),
-            nn.Flatten())
-
-        self.fc = nn.Linear(self.channel_b * self.input_features, self.output_dim)
-
+        # self.fc1 =  nn.Sequential(
+        #     nn.Linear(self.input_features, 3000),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(3000),
+        #     nn.Dropout(self.drop_prob),
+        #     nn.Linear(3000, 4000),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(4000),
+        #     nn.Dropout(self.drop_prob),
+        #     nn.Linear(4000, 1000),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(1000),
+        #     nn.Linear(1000, self.input_features),
+        #     nn.ReLU(),
+        #     nn.BatchNorm1d(self.input_features)
+        # )
+        
+        # self.fc2 = nn.Linear(2381, self.output_dim)
+        self.fc1 = nn.Linear(self.input_features, 1024)
+        self.fc1_bn = nn.BatchNorm1d(1024)
+        self.fc1_drop = nn.Dropout(self.drop_prob)
+        self.act1 = nn.ReLU()
+        
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc2_bn = nn.BatchNorm1d(512)
+        self.fc2_drop = nn.Dropout(self.drop_prob)
+        self.act2 = nn.ReLU()
+        
+        self.fc3 = nn.Linear(512, 256)
+        self.fc3_bn = nn.BatchNorm1d(256)
+        self.fc3_drop = nn.Dropout(self.drop_prob)
+        self.act3 = nn.ReLU()
+        
+        self.fc4 = nn.Linear(256, self.output_dim)
+        self.fc4_bn = nn.BatchNorm1d(self.output_dim)
+        self.fc4_drop = nn.Dropout(self.drop_prob)
+        self.act4 = nn.ReLU()
+        
         self.softmax = nn.Softmax()
 
     def forward(self, x):
-        x = x.view(-1, self.input_channel, self.input_features)
-        x = self.conv(x)
-        x = x.view(-1, self.channel_b * self.input_features)
-        x = self.fc(x)
+        x = x.view(-1, self.input_features)
+        # x = x.view(-1, self.input_channel, self.input_features)
+        # x = self.conv(x)
+        # x = x.view(-1, self.channel_b * self.input_features)
+        # x = self.fc1(x)
+        # x = self.fc1(x)
+        # x = self.fc1(x)
+        # x = self.fc1(x)
+        # x = self.fc1(x)
+        # x = x.view(-1, self.input_features)
+        # x = self.fc2(x)
+        x = self.fc1(x)
+        x = self.fc1_bn(x)
+
+        x = self.fc1_drop(x)
+        x = self.act1(x)
+
+        x = self.fc2(x)
+        x = self.fc2_bn(x)
+        x = self.fc2_drop(x)
+        x = self.act2(x)
+
+        x = self.fc3(x)
+        x = self.fc3_bn(x)
+        x = self.fc3_drop(x)
+        x = self.act3(x)
+
+        x = self.fc4(x)
+        x = self.fc4_bn(x)
+        x = self.fc4_drop(x)
+        x = self.act4(x)
+
         x = self.softmax(x)
         return x
 
     def predict(self, x_data):
         x_data = self.forward(x_data)
         result = self.softmax(x_data)
-        return result
+        return result 
+    
 
-PATH = "/home/02mjpark/ConvGAN/SAVE/bsmdl.pt"
+
+PATH = "/home/02mjpark/ConvGAN/SAVE/bsmdl_100.pt"
 # model = torch.load(PATH)
 model = Classifier()
-model.load_state_dict(torch.load(PATH))
+saved_checkpoint = torch.load(PATH)
+model.load_state_dict(saved_checkpoint, strict=False)
 
 def test(model, x_test, y_test, Y_test_onehot):
 
@@ -80,7 +129,11 @@ def test(model, x_test, y_test, Y_test_onehot):
     predicted_classes = prediction.max(1)[1]
     correct_count = (predicted_classes == y_test).sum().item()
     cost = F.cross_entropy(prediction, Y_test_onehot)
+    print(prediction.shape, Y_test_onehot.shape)
 
+    # print(Y_test[1])
+    # print(Y_test_onehot[1])
+    # print(predicted_classes[1])
     print('Accuracy: {}% Cost: {:.6f}'.format(
         correct_count / len(y_test) * 100, cost.item()
     ))    
