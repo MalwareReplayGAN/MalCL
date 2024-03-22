@@ -35,7 +35,7 @@ class Classifier(nn.Module):
         self.input_features = 2381
         # self.input_channel = 1
         self.output_dim = 100
-        self.drop_prob = 0.3
+        self.drop_prob = 0.5
 
         # self.conv = nn.Sequential(
         #     nn.Conv1d(self.input_channel, self.channel_d, kernel_size=3, padding=1),
@@ -131,7 +131,7 @@ class Classifier(nn.Module):
 #####################################
 lr = 0.001
 epoch_number = 500
-batchsize = 32
+batchsize = 16
 # nb_batch = int(len(X_train)/batchsize)
 nb_batch = int(len(X_train_100)/batchsize)
 
