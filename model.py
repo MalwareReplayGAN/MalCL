@@ -143,46 +143,63 @@ class Classifier(nn.Module):
 
         self.input_features = 2381
         self.input_channel = 1
-        self.channel_b = 128
-        self.channel_c = 256
-        self.channel_d = 512
         self.output_dim = 100
-        self.drop_prob = 0.3
+        self.drop_prob = 0.5
 
-        self.conv = nn.Sequential(
-            nn.Conv1d(self.input_channel, self.channel_d, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_d),
-            nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.channel_d, self.channel_c, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_c),
-            nn.Dropout(self.drop_prob),
-            nn.Conv1d(self.channel_c, self.channel_b, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.channel_b),
-            nn.Dropout(self.drop_prob),
-            nn.Flatten())
+        self.fc1 = nn.Linear(self.input_features, 1024)
+        self.fc1_bn = nn.BatchNorm1d(1024)
+        self.fc1_drop = nn.Dropout(self.drop_prob)
+        self.act1 = nn.ReLU()
+        
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc2_bn = nn.BatchNorm1d(512)
+        self.fc2_drop = nn.Dropout(self.drop_prob)
+        self.act2 = nn.ReLU()
+        
+        self.fc3 = nn.Linear(512, 256)
+        self.fc3_bn = nn.BatchNorm1d(256)
+        self.fc3_drop = nn.Dropout(self.drop_prob)
+        self.act3 = nn.ReLU()
+        
+        self.fc4 = nn.Linear(256, self.output_dim)
+        self.fc4_bn = nn.BatchNorm1d(self.output_dim)
+        self.fc4_drop = nn.Dropout(self.drop_prob)
+        self.act4 = nn.ReLU()
 
-        self.fc = nn.Linear(self.channel_b * self.input_features, self.output_dim)
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
-        x = x.view(-1, self.input_channel, self.input_features)
-        # print("1-", x.shape)
-        x = self.conv(x)
-        # print("2-", x.shape)
-        x = x.view(-1, self.channel_b * self.input_features)
-        # print("3-", x.shape)
-        x = self.fc(x)
-        # print("5-", x.shape)
-        #x = x.view(-1, self.output_dim)
-        # print("5-", x.shape)
-        # print("C")
+        x = x.view(-1, self.input_features)
+        x = self.fc1(x)
+        x = self.fc1_bn(x)
+
+        x = self.fc1_drop(x)
+        x = self.act1(x)
+
+        x = self.fc2(x)
+        x = self.fc2_bn(x)
+        x = self.fc2_drop(x)
+        x = self.act2(x)
+
+        x = self.fc3(x)
+        x = self.fc3_bn(x)
+        x = self.fc3_drop(x)
+        x = self.act3(x)
+
+        x = self.fc4(x)
+        x = self.fc4_bn(x)
+        x = self.fc4_drop(x)
+        x = self.act4(x)
+
+        x = self.softmax(x)
+    
         return x
 
     def predict(self, x_data):
-        z=self.forward(x_data)
-        return torch.argmax(z,axis=1) #가장 큰 인덱스 리턴
+        result = self.forward(x_data)
+        result = self.softmax(result)
+        return result
+        # return torch.argmax(z,axis=1) #가장 큰 인덱스 리턴
 
 
 
