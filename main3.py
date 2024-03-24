@@ -212,24 +212,11 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
 
 #distance 계산 위해 추가한 함수들
 
-def get_replay_with_label(generator, classifier, batchsize):
-    z_ = Variable(torch.rand((batchsize, z_dim)))
-    if use_cuda:
-        z_ = z_.cuda(0)
-    images = generator(z_)
-    label = classifier.predict(images)
-    selector(images, label)
-    
-    
-    print("predicted label", label)
-  
-    return images.cpu(), label.cpu()
-
-def Rank(sumArr, img, y1):
+def Rank(sumArr, img, y1, k):
     y = pandas.DataFrame({'a': sumArr, 'b':img.tolist(), 'c':y1.tolist()})
     y = y.sort_values(by=['a'], axis = 0)
-    img_ = y['b'][0:1]
-    y1_ = y['c'][0:1]
+    img_ = y['b'][0:k]
+    y1_ = y['c'][0:k]
     return img_.tolist(), y1_.tolist()
 
 def GetL2Dist(y1, y2):
@@ -241,13 +228,13 @@ def GetL2Dist(y1, y2):
         sumArr.append(sum(arr))
     return sumArr
 
-def selector(images, label):
+def selector(images, label, k):
     img = []
     lbl = []
     GroundTruth = ground(len(label[0]))
     for i in range(len(GroundTruth)):
         sumArr = GetL2Dist(label, GroundTruth[i])
-        new_images, new_label = Rank(sumArr, images, label)
+        new_images, new_label = Rank(sumArr, images, label, k)
         img = img + new_images
         lbl = lbl + new_label
     return numpy.array(img), torch.tensor(lbl)
@@ -259,7 +246,7 @@ def get_replay_with_label(generator, classifier, batchsize):
     z_ = z_.cuda(0)
   images = generator(z_)
   label = classifier.predict(images)
-  images, label = selector(images, label)		#추가
+  images, label = selector(images, label, k)		#추가
   return images.cpu(), label.cpu()
 
 
