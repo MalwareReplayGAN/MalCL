@@ -6,8 +6,10 @@ from torch.autograd import Variable
 from copy import deepcopy
 import torch.optim as optim
 import numpy as np
+import pandas
 from model import Generator, Discriminator, Classifier
-from data_ import get_ember_train_data, extract_100data
+from data_ import get_ember_train_data, extract_100data, oh
+
 # from function import get_iter_dataset, run_batch, get_replay_with_label
 
 #
@@ -47,8 +49,10 @@ torch.manual_seed(0);
 # Call the Ember Data
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
-X_train, Y_train, Y_train_oh = get_ember_train_data(data_dir)
-X_train_100, Y_train_100, Y_train_100_oh = extract_100data(X_train, Y_train)
+X_train, Y_train = get_ember_train_data(data_dir)
+X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
+# Y_train_oh = oh(Y_train)
+Y_train_100_oh = oh(Y_train_100)
 feats_length= 2381
 num_training_samples = 303331
 
@@ -237,9 +241,11 @@ def selector(images, label, k):
         new_images, new_label = Rank(sumArr, images, label, k)
         img = img + new_images
         lbl = lbl + new_label
-    return numpy.array(img), torch.tensor(lbl)
+    return np.array(img), torch.tensor(lbl)
 
 #수정함
+k = 1
+
 def get_replay_with_label(generator, classifier, batchsize):
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
@@ -292,5 +298,5 @@ for task in range(nb_task):
 
 
 
-PATH = "/home/02mjpark/ConvGAN/SAVE/mdl_100_2.pt"
+PATH = "/home/02mjpark/ConvGAN/SAVE/mdl_k=1.pt"
 torch.save(C.state_dict(), PATH)
