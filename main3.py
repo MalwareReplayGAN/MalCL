@@ -258,6 +258,7 @@ D.reinit()
 for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
+
   nb_batch = int(len(x_)/batchsize)
   # print("nb_batch", nb_batch)
   for epoch in range(epoch_number):
