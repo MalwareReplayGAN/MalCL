@@ -172,6 +172,12 @@ def ground(a):
         new[i][i] = 1
     return new
 
+def ground(a):
+    new = numpy.zeros((a, a))
+    for i in range(a):
+        new[i][i] = 1
+    return new
+
 def Rank(sumArr, img, y1, k):
     y = pandas.DataFrame({'a': sumArr, 'b':img.tolist(), 'c':y1.tolist()})
     y = y.sort_values(by=['a'], axis = 0)
