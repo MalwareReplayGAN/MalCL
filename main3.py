@@ -191,13 +191,16 @@ def GetL2Dist(y1, y2):
 def selector(images, label, k):
     img = []
     lbl = []
+    lbl_for_one_hot = []
     GroundTruth = ground(len(label[0]))
     for i in range(len(GroundTruth)):
         sumArr = GetL2Dist(label, GroundTruth[i])
         new_images, new_label = Rank(sumArr, images, label, k)
         img = img + new_images
         lbl = lbl + new_label
-    return torch.tensor(img), torch.tensor(lbl)
+    for k in lbl:
+      lbl_for_one_hot.append(k.index(max(k)))
+    return torch.tensor(img), torch.tensor(lbl_for_one_hot)
 
 #수정함
 k = 2
@@ -209,14 +212,18 @@ def get_replay_with_label(generator, classifier, batchsize):
     z_ = z_.cuda(0)
   images = generator(z_)
   label = classifier.predict(images)
-  images, label = selector(images, label, k)		#추가
-  label = nn.functional.one_hot(label, num_classes = len(label[0]))   #one hot encoding
+  images, lbl_for_one_hot = selector(images, label, k)		#추가
+  label = nn.functional.one_hot(lbl_for_one_hot, num_classes = len(label[0]))   #one hot encoding
+  torch.tensor(label)
   print("========================== generated images ===========================")
   print(images)
   print("++++++++++++++++++++++++++ labels ++++++++++++++++++++++++++++++++++")
   print(label)
   print("num of label: ", len(label))
   return images.cpu(), label.cpu()
+
+
+
 
 
 
