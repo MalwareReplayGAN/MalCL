@@ -58,13 +58,13 @@ num_training_samples = 303331
 
 # Declarations and Hyper-parameters
 
-init_classes = 50
+init_classes = 20
 final_classes = 100
-nb_inc = 25
+nb_inc = 20
 nb_task = int(((final_classes - init_classes) / nb_inc) + 1)
-batchsize = 64
+batchsize = 32
 lr = 0.001
-epoch_number = 10
+epoch_number = 100
 z_dim = 62
 
 
@@ -172,12 +172,6 @@ def ground(a):
         new[i][i] = 1
     return new
 
-def ground(a):
-    new = numpy.zeros((a, a))
-    for i in range(a):
-        new[i][i] = 1
-    return new
-
 def Rank(sumArr, img, y1, k):
     y = pandas.DataFrame({'a': sumArr, 'b':img.tolist(), 'c':y1.tolist()})
     y = y.sort_values(by=['a'], axis = 0)
@@ -206,16 +200,24 @@ def selector(images, label, k):
     return torch.tensor(img), torch.tensor(lbl)
 
 #수정함
-k = 1
+k = 2
 
 def get_replay_with_label(generator, classifier, batchsize):
+
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
     z_ = z_.cuda(0)
   images = generator(z_)
   label = classifier.predict(images)
   images, label = selector(images, label, k)		#추가
+  label = nn.functional.one_hot(label, num_classes = len(label[0]))   #one hot encoding
+  print("========================== generated images ===========================")
+  print(images)
+  print("++++++++++++++++++++++++++ labels ++++++++++++++++++++++++++++++++++")
+  print(label)
+  print("num of label: ", len(label))
   return images.cpu(), label.cpu()
+
 
 
 
