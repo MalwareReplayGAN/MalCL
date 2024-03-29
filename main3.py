@@ -7,6 +7,8 @@ from copy import deepcopy
 import torch.optim as optim
 import numpy as np
 import pandas
+from sklearn.preprocessing import StandardScaler
+import joblib
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh
 
@@ -67,6 +69,7 @@ lr = 0.001
 epoch_number = 100
 z_dim = 62
 
+scaler = StandardScaler()
 
 G = Generator()
 D = Discriminator()
@@ -235,9 +238,10 @@ D.reinit()
 for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
+  x_ = scaler.fit_transform(x_)
 
   nb_batch = int(len(x_)/batchsize)
-  # print("nb_batch", nb_batch)
+  
   for epoch in range(epoch_number):
     for index in range(nb_batch):
       # print("index", index)
@@ -271,3 +275,4 @@ for task in range(nb_task):
 
 PATH = "/home/02mjpark/ConvGAN/SAVE/mdl_k=1.pt"
 torch.save(C.state_dict(), PATH)
+joblib.dump(scaler, '/home/02mjpark/ConvGAN/SAVE/scaler_main3.pkl')
