@@ -238,8 +238,8 @@ D.reinit()
 for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
-  x_ = scaler.fit_transform(x_)
-
+  x_ = scaler.partial_fit(x_)
+  x_ = scaler.transform(x_)
   nb_batch = int(len(x_)/batchsize)
   
   for epoch in range(epoch_number):
