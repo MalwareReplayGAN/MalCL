@@ -64,7 +64,7 @@ init_classes = 20
 final_classes = 100
 nb_inc = 20
 nb_task = int(((final_classes - init_classes) / nb_inc) + 1)
-batchsize = 32
+batchsize = 64
 lr = 0.001
 epoch_number = 100
 z_dim = 62
@@ -206,7 +206,7 @@ def selector(images, label, k):
     return torch.tensor(img), torch.tensor(lbl_for_one_hot)
 
 #수정함
-k = 2
+k = 1
 
 def get_replay_with_label(generator, classifier, batchsize):
 
@@ -238,7 +238,7 @@ D.reinit()
 for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
-  x_ = scaler.partial_fit(x_)
+  scaler = scaler.partial_fit(x_)
   x_ = scaler.transform(x_)
   nb_batch = int(len(x_)/batchsize)
   
