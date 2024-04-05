@@ -19,7 +19,7 @@ def get_ember_test_data(data_dir):
     return X_test, Y_test, Y_test_onehot
 
 def shuffle_data(x_, y_):
-    indices = list(range(10000))
+    indices = list(range(len(x_)))
     random.shuffle(indices)
     x_ = x_[indices]
     y_ = y_[indices]
