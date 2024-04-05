@@ -54,20 +54,15 @@ class Classifier(nn.Module):
         self.fc3_drop = nn.Dropout(self.drop_prob)
         self.act3 = nn.ReLU()
 
-        self.fc4 = nn.Linear(256, self.output_dim)
-        self.fc4_bn = nn.BatchNorm1d(self.output_dim)
-        self.fc4_drop = nn.Dropout(self.drop_prob)
+        self.fc4 = nn.Linear(256, 128)
+        self.fc4_bn = nn.BatchNorm1d(128)
+        self.fc4_drop = nn.Dropout(0.5)
         self.act4 = nn.ReLU()
 
-        # self.fc4 = nn.Linear(256, 128)
-        # self.fc4_bn = nn.BatchNorm1d(128)
-        # self.fc4_drop = nn.Dropout(0.5)
-        # self.act4 = nn.ReLU()
-
-        # self.fc5 = nn.Linear(128, self.output_dim)
-        # self.fc5_bn = nn.BatchNorm1d(self.output_dim)
-        # self.fc5_drop = nn.Dropout(0.5)
-        # self.act5 = nn.ReLU()
+        self.fc5 = nn.Linear(128, self.output_dim)
+        self.fc5_bn = nn.BatchNorm1d(self.output_dim)
+        self.fc5_drop = nn.Dropout(0.5)
+        self.act5 = nn.ReLU()
 
         self.softmax = nn.Softmax()
 
@@ -94,10 +89,10 @@ class Classifier(nn.Module):
         x = self.fc4_drop(x)
         x = self.act4(x)
         
-        # x = self.fc5(x)
-        # x = self.fc5_bn(x)
-        # x = self.fc5_drop(x)
-        # x = self.act5(x)
+        x = self.fc5(x)
+        x = self.fc5_bn(x)
+        x = self.fc5_drop(x)
+        x = self.act5(x)
 
         x = self.softmax(x)
         return x
