@@ -138,12 +138,14 @@ class Discriminator(nn.Module):
         return x.view(-1, 1)
     
 class Classifier(nn.Module):
+
     def __init__(self):
         super(Classifier, self).__init__()
 
         self.input_features = 2381
         self.input_channel = 1
-        self.output_dim = 100
+        self.output_dim = 20
+        self.output_dim = 20
         self.drop_prob = 0.5
 
         self.fc1 = nn.Linear(self.input_features, 1024)
@@ -162,7 +164,7 @@ class Classifier(nn.Module):
         self.act3 = nn.ReLU()
         
         self.fc4 = nn.Linear(256, 128)
-        self.fc4_bn = nn.BatchNorm1d(self.output_dim)
+        self.fc4_bn = nn.BatchNorm1d(128)
         self.fc4_drop = nn.Dropout(self.drop_prob)
         self.act4 = nn.ReLU()
 
@@ -175,6 +177,7 @@ class Classifier(nn.Module):
 
     def forward(self, x):
         x = x.view(-1, self.input_features)
+
         x = self.fc1(x)
         x = self.fc1_bn(x)
         x = self.fc1_drop(x)
@@ -194,15 +197,38 @@ class Classifier(nn.Module):
         x = self.fc4_bn(x)
         x = self.fc4_drop(x)
         x = self.act4(x)
-
+        
         x = self.fc5(x)
         x = self.fc5_bn(x)
         x = self.fc5_drop(x)
         x = self.act5(x)
-        
+
         x = self.softmax(x)
     
         return x
+
+    def expand_output_layer(self, init_classes, nb_inc, task):
+        """
+        Expand the output layer to accommodate new_classes.
+        This method retains the weights of the existing layer and expands it to fit the new class count.
+        """
+        old_fc5 = self.fc5
+        self.output_dim = init_classes + nb_inc * task
+
+        # Create a new classifier layer with the updated output dimension.
+        self.fc5 = nn.Linear(128, self.output_dim)
+        self.fc5_bn = nn.BatchNorm1d(self.output_dim)
+
+        # Trnasfer the old weights and biases
+        with torch.no_grad():
+            self.fc5.weight[:old_fc5.out_features].copy_(old_fc5.weight.data)
+            self.fc5.bias[:old_fc5.out_features].copy_(old_fc5.bias.data)
+
+        return self
+    
+    # def update_output_dim(self, init_classes, nb_inc, task):
+    #     self.output_dim = init_classes + nb_inc * task
+    #     return self.output_dim
 
     def predict(self, x_data):
         result = self.forward(x_data)
