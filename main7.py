@@ -298,7 +298,9 @@ for task in range(nb_task):
         # print(x_i.shape, replay.shape, re_label.shape)
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
-
+        C = C.expand_output_layer(init_classes, nb_inc, task)
+        C = C
+        C.to(device)
         run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
     print("epoch:", epoch)
 
