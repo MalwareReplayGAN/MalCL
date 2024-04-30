@@ -69,7 +69,7 @@ nb_inc = 20
 nb_task = int(((final_classes - init_classes) / nb_inc) + 1)
 batchsize = 128
 lr = 0.001
-epoch_number = 5
+epoch_number = 10
 z_dim = 62
 
 scaler = StandardScaler()
@@ -308,35 +308,6 @@ for task in range(nb_task):
   print("task", task, "done")
   # z_ = Variable(torch.rand((nb_samples, z_dim)))
 
-
-
-
-
-
-
-
-
-
-
-'''
-    for index in range(nb_batch):
-      # print("index", index)
-      x_i = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
-      # print(x_i.shape)
-      y_i = torch.Tensor(y_[index*batchsize:(index+1)*batchsize])
-      y_i = y_i.float()
-      # print(y_i.shape)
-      
-      # print("y_ shape", y_.shape)
-
-      if task > 0 :
-        # We concat a batch of previously learned data
-        # the more there are past tasks more data need to be regenerated
-        # replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
-        replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
-        # print(x_i.shape, replay.shape, re_label.shape)
-        x_i=torch.cat((x_i,replay),0)
-        y_i=torch.cat((y_i,re_label),0) 
-
-      run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_i, y_i)
-'''
+PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
+torch.save(C.state_dict(), PATH)
+joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 수정
