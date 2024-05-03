@@ -25,9 +25,9 @@ def shuffle_data(x_, y_):
     y_ = y_[indices]
     return x_, y_
 
-def oh(Y):
+def oh(Y, num_classes):
     Y = torch.LongTensor(Y)
-    Y_oh = nn.functional.one_hot(Y)
+    Y_oh = nn.functional.one_hot(Y, num_classes=num_classes)
     return Y_oh
 
 def extract_100data(X_train, Y_train):
