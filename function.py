@@ -1,5 +1,6 @@
 import torch
 from torch.autograd import Variable
+import torch.nn.functional as F
 import numpy as np
 import pandas
 from sklearn.preprocessing import StandardScaler
@@ -7,26 +8,38 @@ from data_ import oh
 import time
 
 
-def get_iter_dataset(x_train, y_train, batchsize, task, init_classes=None, nb_inc=None):
+
+def get_iter_train_dataset(x, y, n_class=None, n_inc=None, task=None):
    
    if task is not None:
     if task == 0:
-       selected_indices = np.where(y_train < init_classes)[0] 
+       selected_indices = np.where(y < n_class)[0] 
     else:
-       start = init_classes + (task-1) * nb_inc
-       end = init_classes + task * nb_inc
-       selected_indices = np.where((y_train >= start) & (y_train < end))
+       start = n_class - n_inc
+       end = n_class
+       selected_indices = np.where((y >= start) & (y < end))
     
-    x_, y_ = x_train[selected_indices], y_train[selected_indices]
+    return x[selected_indices], y[selected_indices]
+
+
+
+def get_iter_test_dataset(x, y, n_class):
+    selected_indices = np.where(y < n_class)[0] 
+    return x[selected_indices], y[selected_indices]
+
+
+
+def get_dataloader(x, y, batchsize, n_class):
 
     # Manage Class Imbalance Issue
+    y_ = np.array(y, dtype=int)
     class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
     weight = 1. / class_sample_count
-    samples_weight = np.array([weight[t] for t in y])
+    samples_weight = np.array([weight[t] for t in y_])
     samples_weight = torch.from_numpy(samples_weight).float()
     sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
     
-    x_ = torch.from_numpy(x_).type(torch.FloatTensor)
+    x_ = torch.from_numpy(x).type(torch.FloatTensor)
     y_ = torch.from_numpy(y_).type(torch.FloatTensor)
 
     # Scaling
@@ -36,7 +49,7 @@ def get_iter_dataset(x_train, y_train, batchsize, task, init_classes=None, nb_in
     x_ = torch.FloatTensor(x_)
     
     # One-hot Encoding
-    y_oh = oh(y_, num_classes=init_classes+nb_inc*task)
+    y_oh = oh(y_, num_classes=n_class)
     y_oh = torch.Tensor(y_oh)
 
     data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
@@ -45,11 +58,13 @@ def get_iter_dataset(x_train, y_train, batchsize, task, init_classes=None, nb_in
     return trainLoader, scaler
 
 
+
 def ground(a):
     new = np.zeros((a, a))
     for i in range(a):
         new[i][i] = 1
     return torch.Tensor(new)
+
 
 
 def Rank(sumArr, img, y1, k):
@@ -66,6 +81,7 @@ def Rank(sumArr, img, y1, k):
     return img_.tolist(), y1_.tolist()
 
 
+
 def GetL2Dist(y1, y2):
     sumArr = []
     for i in range(len(y1)):
@@ -74,6 +90,7 @@ def GetL2Dist(y1, y2):
             arr.append((a-b)**2)
         sumArr.append(sum(arr))
     return sumArr
+
 
 
 def selector(images, label, k):
@@ -92,13 +109,18 @@ def selector(images, label, k):
 
 
 
-def test(model, scaler, x_test, y_test, Y_test_onehot):
+def test(model, x_train, y_train, x_test, y_test, n_class):
 
+    scaler = StandardScaler()
+    x_train, y_train = get_iter_test_dataset(x_train, y_train, n_class)
+
+    scaler = scaler.fit(x_train)
     x_test = scaler.transform(x_test)
     x_test = torch.FloatTensor(x_test)
     y_test = torch.Tensor(y_test)
     y_test = y_test.float()
 
+    Y_test_onehot = oh(y_test, num_classes=n_class)
     Y_test_onehot = torch.Tensor(Y_test_onehot)
     Y_test_onehot = Y_test_onehot.float()
 
@@ -116,7 +138,18 @@ def test(model, scaler, x_test, y_test, Y_test_onehot):
     predicted_classes = prediction.max(1)[1]
     correct_count = (predicted_classes == y_test).sum().item()
     cost = F.cross_entropy(prediction, Y_test_onehot)
+    accuracy = correct_count / len(y_test) * 100
+
+    ls_a = []
+    ls_a.append(accuracy)
+    
+    ls_c = []
+    ls_c.append(cost.item())
 
     print('Accuracy: {}% Cost: {:.6f}'.format(
-        correct_count / len(y_test) * 100, cost.item()
+        accuracy, cost.item()
     ))
+
+    return ls_a
+       
+

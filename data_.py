@@ -26,8 +26,8 @@ def shuffle_data(x_, y_):
     return x_, y_
 
 def oh(Y, num_classes):
-    Y = torch.LongTensor(Y)
-    Y_oh = nn.functional.one_hot(Y, num_classes=num_classes)
+    Y = torch.FloatTensor(Y)
+    Y_oh = nn.functional.one_hot(Y.to(torch.int64), num_classes=num_classes)
     return Y_oh
 
 def extract_100data(X_train, Y_train):
