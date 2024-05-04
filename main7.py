@@ -11,11 +11,10 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh
+from function import get_iter_dataset, ground, Rank, GetL2Dist, selector
 import math
 import time
 from torch.utils.data import TensorDataset
-
-# from function import get_iter_dataset, run_batch, get_replay_with_label
 
 #
 # parser = argparse.ArgumentParser('./main.py', description='Run')
@@ -146,6 +145,7 @@ def get_iter_dataset(x_train, y_train, task, init_classes=None, nb_inc=None):
     y_ = torch.from_numpy(y_).type(torch.FloatTensor)
 
     # Scaling
+    scaler = StandardScaler()
     x_ = scaler.fit_transform(x_)
     x_ = torch.FloatTensor(x_)
     
@@ -340,7 +340,7 @@ for task in range(nb_task):
   C_saved = deepcopy(C)
 
   print("task", task, "done")
-  
+
 
 PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
 torch.save(C.state_dict(), PATH)
