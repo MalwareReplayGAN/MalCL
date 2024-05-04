@@ -10,8 +10,8 @@ import pandas
 from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
-from data_ import get_ember_train_data, extract_100data, oh
-from function import get_iter_dataset, ground, Rank, GetL2Dist, selector
+from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data
+from function import get_iter_dataset, ground, Rank, GetL2Dist, selector, test
 import math
 import time
 from torch.utils.data import TensorDataset
@@ -67,6 +67,7 @@ else:
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
+X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 # X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
 # Y_train_oh = oh(Y_train)
 # Y_train_100_oh = oh(Y_train_100)
@@ -310,7 +311,7 @@ D.reinit()
 
 for task in range(nb_task):
   # Load data for the current task
-  train_loader = get_iter_dataset(X_train,  Y_train, task=task, init_classes=init_classes, nb_inc=nb_inc)
+  train_loader, scaler = get_iter_dataset(X_train,  Y_train, task=task, init_classes=init_classes, nb_inc=nb_inc)
 
   for epoch in range(epoch_number):
     for inputs, labels in train_loader:
@@ -338,6 +339,11 @@ for task in range(nb_task):
 
   G_saved = deepcopy(G)
   C_saved = deepcopy(C)
+
+  # test
+    
+  with torch.no_grad():
+      test(model=C_saved, scaler=scaler, X_test=X_test, Y_test=Y_test, Y_test_onehot=Y_test_onehot)
 
   print("task", task, "done")
 

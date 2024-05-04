@@ -31,7 +31,8 @@ def get_iter_dataset(x_train, y_train, batchsize, task, init_classes=None, nb_in
 
     # Scaling
     scaler = StandardScaler()
-    x_ = scaler.fit_transform(x_)
+    scaler = scaler.fit(x_)
+    x_ = scaler.transform(x_)
     x_ = torch.FloatTensor(x_)
     
     # One-hot Encoding
@@ -41,7 +42,7 @@ def get_iter_dataset(x_train, y_train, batchsize, task, init_classes=None, nb_in
     data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
     trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler, drop_last=True)
 
-    return trainLoader
+    return trainLoader, scaler
 
 
 def ground(a):
@@ -88,3 +89,34 @@ def selector(images, label, k):
     for k in lbl:
       lbl_for_one_hot.append(k.index(max(k)))
     return torch.tensor(img), torch.tensor(lbl_for_one_hot)
+
+
+
+def test(model, scaler, x_test, y_test, Y_test_onehot):
+
+    x_test = scaler.transform(x_test)
+    x_test = torch.FloatTensor(x_test)
+    y_test = torch.Tensor(y_test)
+    y_test = y_test.float()
+
+    Y_test_onehot = torch.Tensor(Y_test_onehot)
+    Y_test_onehot = Y_test_onehot.float()
+
+    
+    # print(x_test.shape)
+    # print(y_test.shape)
+    # use_cuda = False
+    # if use_cuda:
+    #     x_test = x_test.cuda(0)
+    #     # y_test = y_test.cuda(0)
+    #     model = model.cuda(0)
+
+    model.eval()
+    prediction = model(x_test)
+    predicted_classes = prediction.max(1)[1]
+    correct_count = (predicted_classes == y_test).sum().item()
+    cost = F.cross_entropy(prediction, Y_test_onehot)
+
+    print('Accuracy: {}% Cost: {:.6f}'.format(
+        correct_count / len(y_test) * 100, cost.item()
+    ))
