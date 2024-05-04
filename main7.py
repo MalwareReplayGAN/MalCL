@@ -42,6 +42,10 @@ from torch.utils.data import TensorDataset
 #       os.makedirs(os.path.dirname(file_path))
 
 
+#######
+# GPU #
+#######
+
 # switch to False to use CPU
 
 use_cuda = True
@@ -50,18 +54,29 @@ use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(0)
 
+if torch.cuda.is_available():
+    device_count = torch.cuda.device_count()
+    print(f"현재 사용 가능한 GPU의 수: {device_count}")
+else:
+    print("GPU를 사용할 수 없습니다.")
+
+##############
+# EMBER DATA #
+##############
 
 # Call the Ember Data
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
-X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
+# X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
 # Y_train_oh = oh(Y_train)
-Y_train_100_oh = oh(Y_train_100)
+# Y_train_100_oh = oh(Y_train_100)
 feats_length= 2381
 num_training_samples = 303331
 
-# Declarations and Hyper-parameters
+#####################################
+# Declarations and Hyper-parameters #
+#####################################
 
 init_classes = 20
 final_classes = 100
@@ -74,6 +89,10 @@ z_dim = 62
 
 scaler = StandardScaler()
 
+##########
+# Models #
+##########
+
 G = Generator()
 D = Discriminator()
 C = Classifier()
@@ -81,12 +100,6 @@ C = Classifier()
 G.train()
 D.train()
 C.train()
-
-if torch.cuda.is_available():
-    device_count = torch.cuda.device_count()
-    print(f"현재 사용 가능한 GPU의 수: {device_count}")
-else:
-    print("GPU를 사용할 수 없습니다.")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 G.to(device)
@@ -106,19 +119,44 @@ C_optimizer = optim.Adam(C.parameters(), lr=lr)
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
 
-#
+#############
+# Functions # 
+#############
 
-def get_iter_dataset(x_train, y_train, y_train_oh, task, nb_inc=None):
+def get_iter_dataset(x_train, y_train, task, init_classes=None, nb_inc=None):
+   
    if task is not None:
     if task == 0:
-       selected_indices = np.where(y_train < init_classes)[0]
-       return x_train[selected_indices], y_train_oh[selected_indices]  
+       selected_indices = np.where(y_train < init_classes)[0] 
     else:
        start = init_classes + (task-1) * nb_inc
        end = init_classes + task * nb_inc
        selected_indices = np.where((y_train >= start) & (y_train < end))
-       return x_train[selected_indices], y_train_oh[selected_indices]
     
+    x_, y_ = x_train[selected_indices], y_train[selected_indices]
+
+    # Manage Class Imbalance Issue
+    class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in y])
+    samples_weight = torch.from_numpy(samples_weight).float()
+    sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
+    
+    x_ = torch.from_numpy(x_).type(torch.FloatTensor)
+    y_ = torch.from_numpy(y_).type(torch.FloatTensor)
+
+    # Scaling
+    x_ = scaler.fit_transform(x_)
+    x_ = torch.FloatTensor(x_)
+    
+    # One-hot Encoding
+    y_oh = oh(y_, num_classes=init_classes+nb_inc*task)
+    y_oh = torch.Tensor(y_oh)
+
+    data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
+    trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler, drop_last=True)
+
+    return trainLoader
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
@@ -266,49 +304,43 @@ def get_replay_with_label(generator, classifier, batchsize):
   return images.to(device), label.to(device)
 
 
-
-
-from torch.utils.data import DataLoader
-
 # We reinit D and G to not cheat
 G.reinit()
 D.reinit()
 
 for task in range(nb_task):
   # Load data for the current task
-  x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
-  scaler = scaler.partial_fit(x_)
-  x_ = scaler.transform(x_)
-  x_ = torch.Tensor(x_)
-  y_ = torch.Tensor(y_)
-  nb_batch = int(len(x_)/batchsize)
-  train_loader = DataLoader(TensorDataset(x_, y_), batch_size=batchsize, shuffle=True)
+  train_loader = get_iter_dataset(X_train,  Y_train, task=task, init_classes=init_classes, nb_inc=nb_inc)
 
   for epoch in range(epoch_number):
     for inputs, labels in train_loader:
+        
         inputs = inputs.float()
         labels = labels.float()
         inputs = inputs.to(device)
         labels = labels.to(device)
+        
         if task > 0 :
-        # We concat a batch of previously learned data
-        # the more there are past tasks more data need to be regenerated
-        # replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
+        # We concat a batch of previously learned data.
+        # the more there are past tasks more data need to be regenerated.
           replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
-        # print(x_i.shape, replay.shape, re_label.shape)
+
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
+
         C = C.expand_output_layer(init_classes, nb_inc, task)
         C = C
         C.to(device)
+        
         run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
+    
     print("epoch:", epoch)
 
   G_saved = deepcopy(G)
   C_saved = deepcopy(C)
 
   print("task", task, "done")
-  # z_ = Variable(torch.rand((nb_samples, z_dim)))
+  
 
 PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
 torch.save(C.state_dict(), PATH)
