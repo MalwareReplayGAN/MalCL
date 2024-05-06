@@ -50,7 +50,7 @@ from torch.utils.data import TensorDataset
 use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
-device = torch.device("cuda" if use_cuda else "cpu")
+device = torch.device("cuda:1" if use_cuda else "cpu")
 torch.manual_seed(0)
 
 if torch.cuda.is_available():
@@ -84,7 +84,7 @@ n_inc = 20
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 128
 lr = 0.001
-epoch_number = 10
+epoch_number = 50
 z_dim = 62
 k = 2
 
@@ -100,7 +100,6 @@ G.train()
 D.train()
 C.train()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 G.to(device)
 D.to(device)
 C.to(device)
@@ -187,16 +186,16 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       return output
 
 
-def get_replay_with_label(generator, classifier, batchsize):
+def get_replay_with_label(generator, classifier, batchsize, n_class):
 
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
     z_ = z_.to(device)
   images = generator(z_)
   label = classifier.predict(images)
-  print("type(images), type(label)", type(images), type(label))
+  # print("type(images), type(label)", type(images), type(label))
   images, lbl_for_one_hot = selector(images, label, k)		#추가
-  label = nn.functional.one_hot(lbl_for_one_hot, num_classes = len(label[0]))   #one hot encoding
+  label = nn.functional.one_hot(lbl_for_one_hot, num_classes = n_class)   #one hot encoding
   torch.tensor(label)
   '''
   print("========================== generated images ===========================")
@@ -207,6 +206,9 @@ def get_replay_with_label(generator, classifier, batchsize):
   print("num of label: ", len(label))
   return images.to(device), label.to(device)
 
+#########
+# Train #
+#########
 
 # We reinit D and G to not cheat
 G.reinit()
@@ -232,7 +234,7 @@ for task in range(nb_task):
         if task > 0 :
         # We concat a batch of previously learned data.
         # the more there are past tasks more data need to be regenerated.
-          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
+          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class)
 
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
@@ -260,6 +262,6 @@ for task in range(nb_task):
 
 
 
-PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
-torch.save(C.state_dict(), PATH)
-joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 수정
+# PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
+# torch.save(C.state_dict(), PATH)
+# joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 수정

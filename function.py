@@ -8,6 +8,11 @@ from data_ import oh
 import time
 
 
+use_cuda = True
+
+use_cuda = use_cuda and torch.cuda.is_available()
+device = torch.device("cuda:1" if use_cuda else "cpu")
+torch.manual_seed(0)
 
 def get_iter_train_dataset(x, y, n_class=None, n_inc=None, task=None):
    
@@ -35,7 +40,7 @@ def get_dataloader(x, y, batchsize, n_class):
     y_ = np.array(y, dtype=int)
     class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
     weight = 1. / class_sample_count
-    samples_weight = np.array([weight[t] for t in y_])
+    samples_weight = np.array([weight[t-n_class+20] for t in y_])
     samples_weight = torch.from_numpy(samples_weight).float()
     sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
     
@@ -124,7 +129,9 @@ def test(model, x_train, y_train, x_test, y_test, n_class):
     Y_test_onehot = torch.Tensor(Y_test_onehot)
     Y_test_onehot = Y_test_onehot.float()
 
+    x_test, y_test, Y_test_onehot = x_test.to(device), y_test.to(device), Y_test_onehot.to(device)
     
+
     # print(x_test.shape)
     # print(y_test.shape)
     # use_cuda = False
