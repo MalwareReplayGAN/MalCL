@@ -20,63 +20,40 @@ class Classifier(nn.Module):
         self.output_dim = 100
         self.drop_prob = 0.5
 
-        self.fc1 = nn.Linear(self.input_features, 1024)
-        self.fc1_bn = nn.BatchNorm1d(1024)
-        self.fc1_drop = nn.Dropout(self.drop_prob)
-        self.act1 = nn.ReLU()
+        self.block1 = nn.Sequential(
+            nn.Conv1d(self.input_features, 512, kernel_size=3, stride=3, padding=1),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Conv1d(512, 256, 3, 3, 1),
+            nn.BatchNorm1d(256),
+            nn.Dropout(self.drop_prob),
+            nn.ReLU(),
+            nn.MaxPool1d(3, 3, 1)
+        )
 
-        self.fc2 = nn.Linear(1024, 512)
-        self.fc2_bn = nn.BatchNorm1d(512)
-        self.fc2_drop = nn.Dropout(self.drop_prob)
-        self.act2 = nn.ReLU()
-
-        self.fc3 = nn.Linear(512, 256)
-        self.fc3_bn = nn.BatchNorm1d(256)
-        self.fc3_drop = nn.Dropout(self.drop_prob)
-        self.act3 = nn.ReLU()
-
-        self.fc4 = nn.Linear(256, 128)
-        self.fc4_bn = nn.BatchNorm1d(128)
-        self.fc4_drop = nn.Dropout(0.5)
-        self.act4 = nn.ReLU()
-
-
-        self.fc5 = nn.Linear(128, self.output_dim)
-        self.fc5_bn = nn.BatchNorm1d(self.output_dim)
-        self.fc5_drop = nn.Dropout(self.drop_prob)
-        self.act5 = nn.ReLU()
-
-        # self.fc2 = nn.Linear(self.input_features, self.output_dim)
+        self.block2 = nn.Sequential(
+            nn.Conv1d(256, 128, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm1d(128),
+            nn.Dropout(self.drop_prob),
+            nn.ReLU(),
+        )
+        
+        self.fc1 = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128, self.output_dim),
+            nn.BatchNorm1d(self.output_dim),
+            nn.Dropout(self.drop_prob),
+            nn.ReLU()
+        )
 
         self.softmax = nn.Softmax()
 
     def forward(self, x):
-
-        x = x.view(-1, self.input_features)
+        
+        x = x.view(-1, self.input_features, 1)
+        x = self.block1(x)
+        x = self.block2(x)
         x = self.fc1(x)
-        x = self.fc1_bn(x)
-        x = self.fc1_drop(x)
-        x = self.act1(x)
-
-        x = self.fc2(x)
-        x = self.fc2_bn(x)
-        x = self.fc2_drop(x)
-        x = self.act2(x)
-
-        x = self.fc3(x)
-        x = self.fc3_bn(x)
-        x = self.fc3_drop(x)
-        x = self.act3(x)
-
-        x = self.fc4(x)
-        x = self.fc4_bn(x)
-        x = self.fc4_drop(x)
-        x = self.act4(x)
-
-        x = self.fc5(x)
-        x = self.fc5_bn(x)
-        x = self.fc5_drop(x)
-        x = self.act5(x)
 
         x = self.softmax(x)
         return x
