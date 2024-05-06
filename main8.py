@@ -14,8 +14,9 @@ from data_ import get_ember_train_data, extract_100data, oh
 import math
 import time
 from torch.utils.data import TensorDataset
-from test import test
+#from test import test
 from data_ import get_ember_test_data
+import torch.nn.functional as F
 
 # from function import get_iter_dataset, run_batch, get_replay_with_label
 
@@ -185,7 +186,7 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       C_loss.backward()
       C_optimizer.step()
 
-      return output, C_loss
+      return output#, C_loss
 
 def ground(a):
     new = np.zeros((a, a))
@@ -212,7 +213,7 @@ def test_data_for_tasks(x_test, y_test, y_test_oh, task, nb_inc=None):
    if task is not None:
     if task == 0:
        selected_indices = np.where(y_test < init_classes)[0]
-       return x_test[selected_indices], y_test_oh[selected_indices]  
+       return x_test[selected_indices], y_test[selected_indices], y_test_oh[selected_indices]  
     else:
        start = init_classes + (task-1) * nb_inc
        end = init_classes + task * nb_inc
@@ -281,6 +282,39 @@ def get_replay_with_label(generator, classifier, batchsize):
   print("num of label: ", len(label))
   return images.to(device), label.to(device)
 
+def test(model, scaler, x_test, y_test, Y_test_onehot):
+
+    x_test = scaler.transform(x_test)
+    x_test = torch.FloatTensor(x_test)
+#    scaler = scaler.partial_fit(x_)
+#    x_ = scaler.transform(x_)
+    y_test = torch.Tensor(y_test)
+    y_test = y_test.float()
+
+    Y_test_onehot = torch.Tensor(Y_test_onehot)
+    Y_test_onehot = Y_test_onehot.float()
+
+    # print(x_test.shape)
+    # print(y_test.shape)
+    # use_cuda = False
+    # if use_cuda:
+    #     x_test = x_test.cuda(0)
+    #     # y_test = y_test.cuda(0)
+    #     model = mod
+
+    model.eval()
+    prediction = model(x_test)
+    predicted_classes = prediction.max(1)[1]
+    correct_count = (predicted_classes == y_test).sum().item()
+    cost = F.cross_entropy(prediction, Y_test_onehot)
+    print(prediction.shape, Y_test_onehot.shape)
+
+    # print(Y_test[1])
+    # print(Y_test_onehot[1])
+    # print(predicted_classes[1])
+    print('Accuracy: {}% Cost: {:.6f}'.format(
+        correct_count / len(y_test) * 100, cost.item()
+    ))    
 
 
 
