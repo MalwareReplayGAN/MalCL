@@ -10,15 +10,11 @@ import pandas
 from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
-from data_ import get_ember_train_data, extract_100data, oh
+from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data
+from function import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
 import math
 import time
 from torch.utils.data import TensorDataset
-#from test import test
-from data_ import get_ember_test_data
-import torch.nn.functional as F
-
-# from function import get_iter_dataset, run_batch, get_replay_with_label
 
 #
 # parser = argparse.ArgumentParser('./main.py', description='Run')
@@ -45,6 +41,10 @@ import torch.nn.functional as F
 #       os.makedirs(os.path.dirname(file_path))
 
 
+#######
+# GPU #
+#######
+
 # switch to False to use CPU
 
 use_cuda = True
@@ -53,30 +53,46 @@ use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(0)
 
+if torch.cuda.is_available():
+    device_count = torch.cuda.device_count()
+    print(f"현재 사용 가능한 GPU의 수: {device_count}")
+else:
+    print("GPU를 사용할 수 없습니다.")
+
+##############
+# EMBER DATA #
+##############
 
 # Call the Ember Data
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
-X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
+print("X_train", len(X_train))
 X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
+
+# X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
 # Y_train_oh = oh(Y_train)
-Y_train_100_oh = oh(Y_train_100)
+# Y_train_100_oh = oh(Y_train_100)
 feats_length= 2381
 num_training_samples = 303331
 
-# Declarations and Hyper-parameters
+#####################################
+# Declarations and Hyper-parameters #
+#####################################
 
 init_classes = 20
 final_classes = 100
-nb_inc = 20
-nb_task = int(((final_classes - init_classes) / nb_inc) + 1)
+n_inc = 20
+nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 128
 lr = 0.001
 epoch_number = 10
 z_dim = 62
+k = 2
 
-scaler = StandardScaler()
+##########
+# Models #
+##########
 
 G = Generator()
 D = Discriminator()
@@ -85,12 +101,6 @@ C = Classifier()
 G.train()
 D.train()
 C.train()
-
-if torch.cuda.is_available():
-    device_count = torch.cuda.device_count()
-    print(f"현재 사용 가능한 GPU의 수: {device_count}")
-else:
-    print("GPU를 사용할 수 없습니다.")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 G.to(device)
@@ -110,19 +120,9 @@ C_optimizer = optim.Adam(C.parameters(), lr=lr)
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
 
-#
-
-def get_iter_dataset(x_train, y_train, y_train_oh, task, nb_inc=None):
-   if task is not None:
-    if task == 0:
-       selected_indices = np.where(y_train < init_classes)[0]
-       return x_train[selected_indices], y_train_oh[selected_indices]  
-    else:
-       start = init_classes + (task-1) * nb_inc
-       end = init_classes + task * nb_inc
-       selected_indices = np.where((y_train >= start) & (y_train < end))
-       return x_train[selected_indices], y_train_oh[selected_indices]
-
+#############
+# Functions # 
+#############
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
@@ -186,81 +186,8 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       C_loss.backward()
       C_optimizer.step()
 
-      return output#, C_loss
+      return output, C_loss
 
-def ground(a):
-    new = np.zeros((a, a))
-    for i in range(a):
-        new[i][i] = 1
-    return torch.Tensor(new)
-
-
-def Rank(sumArr, img, y1, k):
-    start = time.time()
-    img_list = img.tolist()
-    y1_list = y1.tolist()
-    zip(img_list, y1_list)
-#    print("time for to list", time_for_to_list = time.time()-start)
-    y = pandas.DataFrame({'a': sumArr, 'b':img_list, 'c':y1_list})
-#    print("time for dataframe", time_for_dataframe = time.time()-start - time_for_to_list)
-    y = y.sort_values(by=['a'], axis = 0)
-    img_ = y['b'][0:k]
-    y1_ = y['c'][0:k]
-    return img_.tolist(), y1_.tolist()
-
-    
-def test_data_for_tasks(x_test, y_test, y_test_oh, task, nb_inc=None):
-   if task is not None:
-    if task == 0:
-       selected_indices = np.where(y_test < init_classes)[0]
-       return x_test[selected_indices], y_test[selected_indices], y_test_oh[selected_indices]  
-    else:
-       start = init_classes + (task-1) * nb_inc
-       end = init_classes + task * nb_inc
-       selected_indices = np.where((y_test >= start) & (y_test < end))
-       return x_test[selected_indices], y_test[selected_indices], y_test_oh[selected_indices]
-  
-
-
-'''
-def Rank(sumArr, img, y1, k):
-
-def GetCrossEntropy(y1, y2):
-    sumArr = []
-    for i in range(len(y1)):
-        arr = []
-        for (a, b) in zip(y1[i].tolist() ,y2.tolist()):
-            arr.append(math.log10(a)*b)
-        sumArr.append(-sum(arr))
-    return sumArr
-'''
-
-def GetL2Dist(y1, y2):
-    sumArr = []
-    for i in range(len(y1)):
-        arr = []
-        for (a, b) in zip(y1[i].tolist() ,y2.tolist()):
-            arr.append((a-b)**2)
-        sumArr.append(sum(arr))
-    return sumArr
-
-
-def selector(images, label, k):
-    img = []
-    lbl = []
-    lbl_for_one_hot = []
-    GroundTruth = ground(len(label[0]))
-    for i in range(len(GroundTruth)):
-        sumArr = GetL2Dist(label, GroundTruth[i])
-        new_images, new_label = Rank(sumArr, images, label, k)
-        img = img + new_images
-        lbl = lbl + new_label
-    for k in lbl:
-      lbl_for_one_hot.append(k.index(max(k)))
-    return torch.tensor(img), torch.tensor(lbl_for_one_hot)
-
-#수정함
-k = 2
 
 def get_replay_with_label(generator, classifier, batchsize):
 
@@ -282,100 +209,82 @@ def get_replay_with_label(generator, classifier, batchsize):
   print("num of label: ", len(label))
   return images.to(device), label.to(device)
 
-def test(model, scaler, x_test, y_test, Y_test_onehot):
-
-    x_test = scaler.transform(x_test)
-    x_test = torch.FloatTensor(x_test)
-#    scaler = scaler.partial_fit(x_)
-#    x_ = scaler.transform(x_)
-    y_test = torch.Tensor(y_test)
-    y_test = y_test.float()
-
-    Y_test_onehot = torch.Tensor(Y_test_onehot)
-    Y_test_onehot = Y_test_onehot.float()
-
-    # print(x_test.shape)
-    # print(y_test.shape)
-    # use_cuda = False
-    # if use_cuda:
-    #     x_test = x_test.cuda(0)
-    #     # y_test = y_test.cuda(0)
-    #     model = mod
-
-    model.eval()
-    prediction = model(x_test)
-    predicted_classes = prediction.max(1)[1]
-    correct_count = (predicted_classes == y_test).sum().item()
-    cost = F.cross_entropy(prediction, Y_test_onehot)
-    print(prediction.shape, Y_test_onehot.shape)
-
-    # print(Y_test[1])
-    # print(Y_test_onehot[1])
-    # print(predicted_classes[1])
-    print('Accuracy: {}% Cost: {:.6f}'.format(
-        correct_count / len(y_test) * 100, cost.item()
-    ))    
-
-
-
-from torch.utils.data import DataLoader
 
 # We reinit D and G to not cheat
 G.reinit()
 D.reinit()
 
 for task in range(nb_task):
+  n_class = init_classes + task * n_inc
   # Load data for the current task
-  x_, y_ = get_iter_dataset(X_train_100, Y_train_100, Y_train_100_oh, task=task, nb_inc=nb_inc)
-  scaler_train = scaler.partial_fit(x_)
-  x_ = scaler_train.transform(x_)
-  x_ = torch.Tensor(x_)
-  y_ = torch.Tensor(y_)
-
-  x_test, y_test, y_test_onehot = test_data_for_tasks(X_test, Y_test, Y_test_onehot, task=task, nb_inc=nb_inc)
-  scaler_test = scaler.partial_fit(x_test)
-
-  nb_batch = int(len(x_)/batchsize)
-  train_loader = DataLoader(TensorDataset(x_, y_), batch_size=batchsize, shuffle=True)
+  print("get_iter_train_dataset")
+  X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
+  nb_batch = int(len(X_train_t)/batchsize)
+  print("nb_batch", nb_batch)
+  print("len(X_train_t)", len(X_train_t))
+  print("get_dataloader")
+  train_loader, scaler_train = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class)
+  print("get_iter_test_dataset")
+  X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
     train_acc = 0.0
-    for inputs, labels in train_loader:
+    for n, (inputs, labels) in enumerate(train_loader):
         inputs = inputs.float()
         labels = labels.float()
         inputs = inputs.to(device)
         labels = labels.to(device)
+        
         if task > 0 :
-        # We concat a batch of previously learned data
-        # the more there are past tasks more data need to be regenerated
-        # replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, task, nb_inc)
+        # We concat a batch of previously learned data.
+        # the more there are past tasks more data need to be regenerated.
           replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
-        # print(x_i.shape, replay.shape, re_label.shape)
+
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
-        C = C.expand_output_layer(init_classes, nb_inc, task)
+        C = C.expand_output_layer(init_classes, n_inc, task)
         C = C
         C.to(device)
-
+#        print("before run_batch n", n)
         outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
+#        print("after run_batch n", n)
         train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
         _, preds = torch.max(outputs, 1)
-        train_acc += torch.sum(preds == labels.data)
+#        print("preds", preds)
+#        print("labels.data", labels.data)
+        class_label = torch.argmax(labels.data, dim=-1)
+#        print("class_label", class_label)
+#        print("torch.sum(preds == labels.data)", torch.sum(preds == class_label))
+        train_acc += torch.sum(preds == class_label)
+#        print("n", n)
+        if (n+1)%160 == 0:
+#          print("\r>")
+          for h in range(int((n+1)/160)):
+           print(">", end="  ")
+          print("[", n+1, "/", nb_batch, "]")
 
+        
     print("epoch:", epoch)
-    train_loss = train_loss / len(x_)
-    train_acc = train_acc / len(x_)
+    train_loss = train_loss / len(X_train_t)
+    train_acc = float(train_acc / len(X_train_t))
     print("train_loss: ", train_loss)
     print("train_acc: ", train_acc)
-
-
   G_saved = deepcopy(G)
   C_saved = deepcopy(C)
 
+  # test
+    
+  with torch.no_grad():
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class)
   print("task", task, "done")
-  print("test accuracy: ", test(C_saved, scaler_test, x_test, y_test, y_test_onehot))
+
+  if task == nb_task-1:
+     print("The Accuracy for each task:", ls_accuracy)
+     print("The Global Average:", sum(ls_accuracy)/len(ls_accuracy))
+
+
 
 PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
 torch.save(C.state_dict(), PATH)
