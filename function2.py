@@ -34,8 +34,11 @@ def get_dataloader(x, y, batchsize, n_class):
     # Manage Class Imbalance Issue
     y_ = np.array(y, dtype=int)
     class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
+#    print("class_sample_count", class_sample_count)
     weight = 1. / class_sample_count
-    samples_weight = np.array([weight[t] for t in y_])
+#    print("y_", y_)
+    samples_weight = np.array([weight[t%20] for t in y_])
+    
     samples_weight = torch.from_numpy(samples_weight).float()
     sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
     
@@ -127,7 +130,7 @@ def test(model, x_train, y_train, x_test, y_test, n_class, device):
     x_test = x_test.to(device)
     Y_test_onehot = Y_test_onehot.to(device)
     y_test = y_test.to(device)
-    
+
     # print(x_test.shape)
     # print(y_test.shape)
     # use_cuda = False
