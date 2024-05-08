@@ -190,24 +190,27 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       return output, C_loss
 
 
-def get_replay_with_label(generator, classifier, batchsize):
+def get_replay_with_label(generator, classifier, batchsize, n_class):
 
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
     z_ = z_.to(device)
   images = generator(z_)
   label = classifier.predict(images)
-  print("type(images), type(label)", type(images), type(label))
+  #print("len(images)", len(images[0]))
+  #print("len(label)", len(label[0]))
+#  print("type(images), type(label)", type(images), type(label))
   images, lbl_for_one_hot = selector(images, label, k)		#추가
   label = nn.functional.one_hot(lbl_for_one_hot, num_classes = len(label[0]))   #one hot encoding
-  torch.tensor(label)
+  ex_lab = torch.Tensor(len(label)*[(n_class-len(label[0]))*[0]])
+  label = torch.cat((label, ex_lab), 1)
   '''
   print("========================== generated images ===========================")
   print(images)
   print("++++++++++++++++++++++++++ labels ++++++++++++++++++++++++++++++++++")
   print(label)
   '''
-  print("num of label: ", len(label))
+  #print("num of label: ", len(label))
   return images.to(device), label.to(device)
 
 
@@ -241,8 +244,9 @@ for task in range(nb_task):
       if task > 0 :
         # We concat a batch of previously learned data.
         # the more there are past tasks more data need to be regenerated.
-          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
-
+          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
+          #print("len(labels)", len(labels[0]))
+          #print("len(re_label)", len(re_label[0]))
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
