@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data
-from function import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
+from function2 import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
 import math
 import time
 from torch.utils.data import TensorDataset
@@ -67,6 +67,7 @@ else:
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
+X_train, Y_train = extract_100data(X_train, Y_train)
 print("X_train", len(X_train))
 X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 
@@ -231,12 +232,13 @@ for task in range(nb_task):
     train_loss = 0.0
     train_acc = 0.0
     for n, (inputs, labels) in enumerate(train_loader):
-        inputs = inputs.float()
-        labels = labels.float()
-        inputs = inputs.to(device)
-        labels = labels.to(device)
+      
+      inputs = inputs.float()
+      labels = labels.float()
+      inputs = inputs.to(device)
+      labels = labels.to(device)
         
-        if task > 0 :
+      if task > 0 :
         # We concat a batch of previously learned data.
         # the more there are past tasks more data need to be regenerated.
           replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize)
@@ -244,29 +246,29 @@ for task in range(nb_task):
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
-        C = C.expand_output_layer(init_classes, n_inc, task)
-        C = C
-        C.to(device)
+      C = C.expand_output_layer(init_classes, n_inc, task)
+      C = C
+      C.to(device)
 #        print("before run_batch n", n)
-        outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
+      outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
 #        print("after run_batch n", n)
-        train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
-        _, preds = torch.max(outputs, 1)
+      train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
+      _, preds = torch.max(outputs, 1)
 #        print("preds", preds)
 #        print("labels.data", labels.data)
-        class_label = torch.argmax(labels.data, dim=-1)
+      class_label = torch.argmax(labels.data, dim=-1)
 #        print("class_label", class_label)
 #        print("torch.sum(preds == labels.data)", torch.sum(preds == class_label))
-        train_acc += torch.sum(preds == class_label)
-#        print("n", n)
-        if (n+1)%160 == 0:
-#          print("\r>")
-          for h in range(int((n+1)/160)):
-           print(">", end="  ")
-          print("[", n+1, "/", nb_batch, "]")
+      train_acc += torch.sum(preds == class_label)
+
+      nb_per_10 = int(nb_batch/10)
+
+      if (n+1)%nb_per_10 == 0:
+#          print("orejgia")
+          print("\r", "> "*int((n+1)/nb_per_10), "[", (n+1), "/", nb_batch, "]", end="")
 
         
-    print("epoch:", epoch)
+    print("epoch:", epoch+1)
     train_loss = train_loss / len(X_train_t)
     train_acc = float(train_acc / len(X_train_t))
     print("train_loss: ", train_loss)
@@ -277,7 +279,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class)
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device)
   print("task", task, "done")
 
   if task == nb_task-1:
