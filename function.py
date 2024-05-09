@@ -11,7 +11,7 @@ import time
 use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
-device = torch.device("cuda:1" if use_cuda else "cpu")
+device = torch.device("cuda:0" if use_cuda else "cpu")
 torch.manual_seed(0)
 
 def get_iter_train_dataset(x, y, n_class=None, n_inc=None, task=None):
@@ -49,7 +49,7 @@ def get_dataloader(x, y, batchsize, n_class):
 
     # Scaling
     scaler = StandardScaler()
-    scaler = scaler.fit(x_)
+    scaler = scaler.partial_fit(x_)
     x_ = scaler.transform(x_)
     x_ = torch.FloatTensor(x_)
     
@@ -114,12 +114,8 @@ def selector(images, label, k):
 
 
 
-def test(model, x_train, y_train, x_test, y_test, n_class):
+def test(model, scaler, x_test, y_test, n_class):
 
-    scaler = StandardScaler()
-    x_train, y_train = get_iter_test_dataset(x_train, y_train, n_class)
-
-    scaler = scaler.fit(x_train)
     x_test = scaler.transform(x_test)
     x_test = torch.FloatTensor(x_test)
     y_test = torch.Tensor(y_test)
