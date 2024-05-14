@@ -67,18 +67,21 @@ class Classifier(nn.Module):
         # self.softmax = nn.Softmax()
 
         self.block1 = nn.Sequential(
-            nn.Conv1d(self.input_features, 512, kernel_size=3, stride=3, padding=1),
-            nn.BatchNorm1d(512),
+            nn.Conv1d(self.input_features, 1024, kernel_size=3, stride=3, padding=1),
+            nn.BatchNorm1d(1024),
             nn.ReLU(),
-            nn.Conv1d(512, 256, 3, 3, 1),
-            nn.BatchNorm1d(256),
+            nn.Conv1d(1024, 512, 3, 3, 1),
+            nn.BatchNorm1d(512),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
             nn.MaxPool1d(3, 3, 1)
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv1d(256, 128, kernel_size=3, stride=2, padding=1),
+            nn.Conv1d(512, 256, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(128),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
