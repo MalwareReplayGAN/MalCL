@@ -85,6 +85,7 @@ class Classifier(nn.Module):
             nn.BatchNorm1d(128),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
+            nn.MaxPool1d(3, 3, 1)
         )
         
         self.fc1 = nn.Sequential(
