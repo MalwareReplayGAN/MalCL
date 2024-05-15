@@ -29,7 +29,7 @@ def get_iter_test_dataset(x, y, n_class):
 
 
 
-def get_dataloader(x, y, batchsize, n_class):
+def get_dataloader(x, y, batchsize, n_class, scaler):
 
     # Manage Class Imbalance Issue
     y_ = np.array(y, dtype=int)
@@ -46,8 +46,8 @@ def get_dataloader(x, y, batchsize, n_class):
     y_ = torch.from_numpy(y_).type(torch.FloatTensor)
 
     # Scaling
-    scaler = StandardScaler()
-    scaler = scaler.fit(x_)
+    #scaler = StandardScaler()
+    scaler = scaler.partial_fit(x_)
     x_ = scaler.transform(x_)
     x_ = torch.FloatTensor(x_)
     
@@ -68,22 +68,47 @@ def ground(a):
         new[i][i] = 1
     return torch.Tensor(new)
 
+def duplicate_index(index, c):
+    for i in index:
+        if c in i:
+            return True
+    return False
 
+def Rank(sumArr, img, y1, k, index_):
 
-def Rank(sumArr, img, y1, k):
-    start = time.time()
+    img_ = []
+    y1_ = []
+    id = []
+
+#    start = time.time()
+    index = [i for i in range(len(y1))]
     img_list = img.tolist()
     y1_list = y1.tolist()
-    zip(img_list, y1_list)
+#    zip(img_list, y1_list)
 #    print("time for to list", time_for_to_list = time.time()-start)
-    y = pandas.DataFrame({'a': sumArr, 'b':img_list, 'c':y1_list})
+    y = pandas.DataFrame({'a': sumArr, 'b':img_list, 'c':y1_list, 'd':index})
 #    print("time for dataframe", time_for_dataframe = time.time()-start - time_for_to_list)
     y = y.sort_values(by=['a'], axis = 0)
-    img_ = y['b'][0:k]
-    y1_ = y['c'][0:k]
-    return img_.tolist(), y1_.tolist()
 
+    for i in range(len(y['b'])):
+        if len(id) == k:
+            break
+        if duplicate_index(index_, y['d'][i]):
+            continue
+        
+        img_.append(y['b'][i])
+        y1_.append(y['c'][i])
+        id.append(y['d'][i])
 
+    return img_, y1_, id
+
+def duplicate(index):
+    count = 0
+    #print("index", index)
+    for i in range(len(index)):
+        for j in range(i+1, len(index)):
+              count+=len(set(index[i]).intersection(set(index[j])))
+    return count
 
 def GetL2Dist(y1, y2):
     sumArr = []
@@ -100,24 +125,35 @@ def selector(images, label, k):
     img = []
     lbl = []
     lbl_for_one_hot = []
+    index = []
     GroundTruth = ground(len(label[0]))
+    #duplicate를 저장할 파일 열기
+
+    new_f = open('duplicate', 'a')
     for i in range(len(GroundTruth)):
         sumArr = GetL2Dist(label, GroundTruth[i])
-        new_images, new_label = Rank(sumArr, images, label, k)
+        new_images, new_label, new_index = Rank(sumArr, images, label, k, index)
         img = img + new_images
         lbl = lbl + new_label
+        index = index + [new_index]
+    duplicate_count = duplicate(index)
+    #print(duplicate_count, end=" ")
+    #파일에 작성
+    new_f.write(str(duplicate_count))
+    new_f.write('\t')
+    new_f.close()
     for k in lbl:
       lbl_for_one_hot.append(k.index(max(k)))
     return torch.tensor(img), torch.tensor(lbl_for_one_hot)
 
 
 
-def test(model, x_train, y_train, x_test, y_test, n_class, device):
+def test(model, x_train, y_train, x_test, y_test, n_class, device, scaler):
 
-    scaler = StandardScaler()
+#    scaler = StandardScaler()
     x_train, y_train = get_iter_test_dataset(x_train, y_train, n_class)
 
-    scaler = scaler.fit(x_train)
+#    scaler = scaler.fit(x_train)
     x_test = scaler.transform(x_test)
     x_test = torch.FloatTensor(x_test)
     y_test = torch.Tensor(y_test)
