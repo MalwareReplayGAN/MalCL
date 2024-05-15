@@ -87,7 +87,7 @@ n_inc = 20
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 128
 lr = 0.001
-epoch_number = 10
+epoch_number = 3
 z_dim = 62
 k = 2
 
@@ -218,7 +218,16 @@ def get_replay_with_label(generator, classifier, batchsize, n_class):
 G.reinit()
 D.reinit()
 
+new_f = open('duplicate', '+w')
+new_f.write("")
+new_f.close()
+
+scaler = StandardScaler()
+
 for task in range(nb_task):
+  new_f = open('duplicate', 'a')
+  new_f.write(' '.join(['task', str(task), '\n']))
+  new_f.close()
   n_class = init_classes + task * n_inc
   # Load data for the current task
   print("get_iter_train_dataset")
@@ -227,13 +236,16 @@ for task in range(nb_task):
   print("nb_batch", nb_batch)
   print("len(X_train_t)", len(X_train_t))
   print("get_dataloader")
-  train_loader, scaler_train = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class)
+  train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
   print("get_iter_test_dataset")
   X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
     train_acc = 0.0
+    new_f = open('duplicate', 'a')
+    new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
+    new_f.close()
     for n, (inputs, labels) in enumerate(train_loader):
       
       inputs = inputs.float()
@@ -267,11 +279,13 @@ for task in range(nb_task):
 
       nb_per_10 = int(nb_batch/10)
 
-      if (n+1)%nb_per_10 == 0:
+      #if (n+1)%nb_per_10 == 0:
 #          print("orejgia")
-          print("\r", "> "*int((n+1)/nb_per_10), "[", (n+1), "/", nb_batch, "]", end="")
+          #print("\r", "> "*int((n+1)/nb_per_10), "[", (n+1), "/", nb_batch, "]", end="")
 
-        
+    new_f = open('duplicate', 'a')
+    new_f.write('\n')
+    new_f.close()
     print("epoch:", epoch+1)
     train_loss = train_loss / len(X_train_t)
     train_acc = float(train_acc / len(X_train_t))
@@ -283,7 +297,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device)
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device, scaler = scaler)
   print("task", task, "done")
 
   if task == nb_task-1:
