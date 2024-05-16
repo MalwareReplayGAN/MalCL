@@ -180,21 +180,25 @@ class Classifier(nn.Module):
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
-            nn.Conv1d(self.input_features, 512, kernel_size=3, stride=3, padding=1),
-            nn.BatchNorm1d(512),
+            nn.Conv1d(self.input_features, 1024, kernel_size=3, stride=3, padding=1),
+            nn.BatchNorm1d(1024),
             nn.ReLU(),
-            nn.Conv1d(512, 256, 3, 3, 1),
-            nn.BatchNorm1d(256),
+            nn.Conv1d(1024, 512, 3, 3, 1),
+            nn.BatchNorm1d(512),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
             nn.MaxPool1d(3, 3, 1)
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv1d(256, 128, kernel_size=3, stride=2, padding=1),
+            nn.Conv1d(512, 256, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(128),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
+            nn.MaxPool1d(3, 3, 1)
         )
         
         self.fc1_f = nn.Flatten()
@@ -261,7 +265,7 @@ class Classifier(nn.Module):
         # If testing, reshape the output tensor back to the original shape
         if len(original_shape) == 3:
             x = x.view(original_shape[0], original_shape[1], -1)
-            
+
         return x
 
     def expand_output_layer(self, init_classes, nb_inc, task):
@@ -290,7 +294,7 @@ class Classifier(nn.Module):
 
     def predict(self, x_data):
         result = self.forward(x_data)
-        result = self.softmax(result)
+        
         return result
         # return torch.argmax(z,axis=1) #가장 큰 인덱스 리턴
 
