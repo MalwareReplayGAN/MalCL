@@ -241,6 +241,11 @@ for task in range(nb_task):
   print("get_iter_test_dataset")
   X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
+  if task > 0:
+    C = C.expand_output_layer(init_classes, n_inc, task)
+    C = C
+    C.to(device)
+
   for epoch in range(epoch_number):
     train_loss = 0.0
     train_acc = 0.0
@@ -263,9 +268,6 @@ for task in range(nb_task):
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
-      C = C.expand_output_layer(init_classes, n_inc, task)
-      C = C
-      C.to(device)
 #        print("before run_batch n", n)
       outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
 #        print("after run_batch n", n)
