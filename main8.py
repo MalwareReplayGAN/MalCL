@@ -91,6 +91,8 @@ epoch_number = 3
 z_dim = 62
 k = 2
 ls_a = []
+momentum = 0.9
+weight_decay = 0.000001
 
 ##########
 # Models #
@@ -117,7 +119,7 @@ if use_cuda:
 '''
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
-C_optimizer = optim.Adam(C.parameters(), lr=lr)
+C_optimizer = optim.SGD(C.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
