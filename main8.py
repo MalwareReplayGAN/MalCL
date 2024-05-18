@@ -81,15 +81,16 @@ num_training_samples = 303331
 # Declarations and Hyper-parameters #
 #####################################
 
-init_classes = 20
+init_classes = 50
 final_classes = 100
-n_inc = 20
+n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 128
 lr = 0.001
 epoch_number = 3
 z_dim = 62
 k = 2
+ls_a = []
 
 ##########
 # Models #
@@ -238,7 +239,7 @@ for task in range(nb_task):
   print("get_dataloader")
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
   print("get_iter_test_dataset")
-  X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
+  X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
@@ -297,12 +298,13 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device, scaler = scaler)
+      accuracy = test(model=C_saved, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
+      ls_a.append(accuracy)
   print("task", task, "done")
 
   if task == nb_task-1:
-     print("The Accuracy for each task:", ls_accuracy)
-     print("The Global Average:", sum(ls_accuracy)/len(ls_accuracy))
+     print("The Accuracy for each task:", ls_a)
+     print("The Global Average:", sum(ls_a)/len(ls_a))
 
 
 

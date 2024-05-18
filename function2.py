@@ -37,6 +37,7 @@ def get_dataloader(x, y, batchsize, n_class, scaler):
 #    print("class_sample_count", class_sample_count)
     weight = 1. / class_sample_count
 #    print("y_", y_)
+    weight = 1. / class_sample_count
     samples_weight = np.array([weight[t%20] for t in y_])
     
     samples_weight = torch.from_numpy(samples_weight).float()
@@ -148,10 +149,10 @@ def selector(images, label, k):
 
 
 
-def test(model, x_train, y_train, x_test, y_test, n_class, device, scaler):
+def test(model, x_test, y_test, n_class, device, scaler):
 
 #    scaler = StandardScaler()
-    x_train, y_train = get_iter_test_dataset(x_train, y_train, n_class)
+#    x_train, y_train = get_iter_test_dataset(x_train, y_train, n_class)
 
 #    scaler = scaler.fit(x_train)
     x_test = scaler.transform(x_test)
@@ -181,17 +182,11 @@ def test(model, x_train, y_train, x_test, y_test, n_class, device, scaler):
     correct_count = (predicted_classes == y_test).sum().item()
     cost = F.cross_entropy(prediction, Y_test_onehot)
     accuracy = correct_count / len(y_test) * 100
-
-    ls_a = []
-    ls_a.append(accuracy)
     
-    ls_c = []
-    ls_c.append(cost.item())
-
     print('Accuracy: {}% Cost: {:.6f}'.format(
         accuracy, cost.item()
     ))
 
-    return ls_a
+    return accuracy
        
 

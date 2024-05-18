@@ -176,7 +176,7 @@ class Classifier(nn.Module):
         # self.softmax = nn.Softmax()
 
         self.input_features = 2381
-        self.output_dim = 20
+        self.output_dim = 50
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
