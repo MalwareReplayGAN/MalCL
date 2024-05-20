@@ -5,7 +5,7 @@ from torch.autograd import Variable
 import numpy as np
 from model import Classifier
 # from function2 import get_iter_test_dataset, get_dataloader, test, oh
-from function2 import get_iter_test_dataset, test, oh
+from function2 import get_iter_test_dataset, test, oh, get_iter_train_dataset
 
 from data_ import get_ember_train_data, get_ember_test_data
 from sklearn.preprocessing import StandardScaler
@@ -90,23 +90,23 @@ def run_batch(C, C_optimizer, x_, y_):
 
 def get_dataloader(x, y, batchsize, n_class, scaler):
 
-    # # Manage Class Imbalance Issue
+    # Manage Class Imbalance Issue
     y_ = np.array(y, dtype=int)
-    # class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
+    class_sample_count = np.array([len(np.where(y_ == t)[0]) for t in np.unique(y_)])
 
-    # weight = 1. / class_sample_count
+    weight = 1. / class_sample_count
 
-    # samples_weight = np.array([weight[t%n_class] for t in y_])
+    samples_weight = np.array([weight[t%n_class] for t in y_])
     
-    # samples_weight = torch.from_numpy(samples_weight).float()
-    # sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
+    samples_weight = torch.from_numpy(samples_weight).float()
+    sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
     
     x_ = torch.from_numpy(x).type(torch.FloatTensor)
     y_ = torch.from_numpy(y_).type(torch.FloatTensor)
 
     # Scaling
     #scaler = StandardScaler()
-    scaler = scaler.partial_fit(x_)
+    scaler = scaler.fit(x_)
     x_ = scaler.transform(x_)
     x_ = torch.FloatTensor(x_)
     
@@ -116,8 +116,8 @@ def get_dataloader(x, y, batchsize, n_class, scaler):
 
     data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
 
-    # trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler, drop_last=True)
-    trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize)
+    trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler)
+    # trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize)
 
     return trainLoader, scaler
 
@@ -133,7 +133,7 @@ for task in range(nb_task):
 
     n_class = init_classes + task * n_inc
 
-    X_train_t, Y_train_t = get_iter_test_dataset(X_train, Y_train, n_class=n_class)
+    X_train_t, Y_train_t = get_iter_test_dataset(X_train, Y_train, n_class=n_class, n_inc=n_inc, task=task)
     train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler=scaler)
 
     X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class)
