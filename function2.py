@@ -38,7 +38,7 @@ def get_dataloader(x, y, batchsize, n_class, scaler):
     weight = 1. / class_sample_count
 #    print("y_", y_)
     weight = 1. / class_sample_count
-    samples_weight = np.array([weight[t%20] for t in y_])
+    samples_weight = np.array([weight[t%5] for t in y_])
     
     samples_weight = torch.from_numpy(samples_weight).float()
     sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
