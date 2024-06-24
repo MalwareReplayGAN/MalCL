@@ -214,121 +214,208 @@ k=2
 #############
 
 def run_batch(C, C_optimizer, x_, y_):
-      x_ = x_.view([-1, feats_length])
-      x_ = Variable(x_)
+
+    x_ = x_.view([-1, feats_length])
+    x_ = Variable(x_)
       
-      if use_cuda:
-        x_, y_ = x_.to(device), y_.to(device)
+    # y_real and y_fake are the label for fake and true data
 
-      # update C
+    y_real_ = Variable(torch.ones(x_.size(0), 1))
+    y_fake_ = Variable(torch.zeros(x_.size(0), 1))
 
-      C_optimizer.zero_grad()
-      output = C(x_)
-      if use_cuda:
-         output = output.to(device)
+    if use_cuda:
+       y_real_, y_fake_ = y_real_.to(device), y_fake_.to(device)
 
-      C_loss = criterion(output, y_)
+    z_ = torch.rand((x_.size(0), z_dim))
+    x_, z_ = Variable(x_), Variable(z_)
+    
+    if use_cuda:
+       x_, z_, y_ = x_.to(device), z_.to(device), y_.to(device)
 
-      C_loss.backward()
-      C_optimizer.step()
+    # update D network
 
-      return output, C_loss
+    D_optimizer.zero_grad()
 
-def ground(a):
-    new = np.zeros((a, a))
-    for i in range(a):
-        new[i][i] = 1
-    return torch.Tensor(new)
+    D_real = D(x_)
+    D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
-def GetDist(logits, y2):
-    sumArr = []
-    for i in range(len(logits)):
-        arr = []
-        for (a, b) in zip(logits[i].tolist(), y2.tolist()):
-            distances = criterion(logits, y2)
-            arr.append(distances)
-    return sumArr
+    G_ = G(z_)
+    D_fake = D(G_)
+    D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
-def duplicate_index(index, c):
-    for i in index:
-        if c in i:
-            return True
-    return False
+    D_loss = D_real_loss + D_fake_loss
 
-def duplicate(index):
-    count = 0
-    #print("index", index)
-    for i in range(len(index)):
-        for j in range(i+1, len(index)):
-              count+=len(set(index[i]).intersection(set(index[j])))
-    return count
+    D_loss.backward()
+    D_optimizer.step()
 
-def Rank(sumArr, img, y1, k, index_):
+    # update G network
 
-    img_ = []
-    y1_ = []
-    id = []
+    G_optimizer.zero_grad()
 
-    index = [i for i in range(len(y1))]
-    img_list = img.tolist()
-    y1_list = y1.tolist()
-#    zip(img_list, y1_list)
+    G_ = G(z_)
+    D_fake = D(G_)
+    G_loss = BCELoss(D_fake, y_real_[:x_.size(0)])
 
-    y = pandas.DataFrame({'a': sumArr, 'b':img_list, 'c':y1_list, 'd':index})
+    G_loss.backward()
+    G_optimizer.step()
+    
+    # update C
+    C_optimizer.zero_grad()
+    output = C(x_)
+    if use_cuda:
+       output = output.to(device)
 
-    y = y.sort_values(by=['a'], axis = 0)
+    C_loss = criterion(output, y_)
 
-    for i in range(len(y['b'])):
-        if len(id) == k:
-            break
-        if duplicate_index(index_, y['d'][i]):
-            continue
+    C_loss.backward()
+    C_optimizer.step()
+
+    return output, C_loss
+
+# def ground(a):
+#     new = np.zeros((a, a))
+#     for i in range(a):
+#         new[i][i] = 1
+#     return torch.Tensor(new)
+
+# def GetDist(logits, y2):
+#     sumArr = []
+#     for i in range(len(logits)):
+#         arr = []
+#         for (a, b) in zip(logits[i].tolist(), y2.tolist()):
+#             distances = criterion(logits, y2)
+#             arr.append(distances)
+#     return sumArr
+
+# def duplicate_index(index, c):
+#     for i in index:
+#         if c in i:
+#             return True
+#     return False
+
+# def duplicate(index):
+#     count = 0
+#     #print("index", index)
+#     for i in range(len(index)):
+#         for j in range(i+1, len(index)):
+#               count+=len(set(index[i]).intersection(set(index[j])))
+#     return count
+
+# def Rank(sumArr, img, y1, k, index_):
+
+#     img_ = []
+#     y1_ = []
+#     id = []
+
+#     index = [i for i in range(len(y1))]
+#     img_list = img.tolist()
+#     y1_list = y1.tolist()
+# #    zip(img_list, y1_list)
+
+#     y = pandas.DataFrame({'a': sumArr, 'b':img_list, 'c':y1_list, 'd':index})
+
+#     y = y.sort_values(by=['a'], axis = 0)
+
+#     for i in range(len(y['b'])):
+#         if len(id) == k:
+#             break
+#         if duplicate_index(index_, y['d'][i]):
+#             continue
         
-        img_.append(y['b'][i])
-        y1_.append(y['c'][i])
-        id.append(y['d'][i])
+#         img_.append(y['b'][i])
+#         y1_.append(y['c'][i])
+#         id.append(y['d'][i])
 
-    return img_, y1_, id
+#     return img_, y1_, id
 
-def selector(images, label, logits, k):
-    img = []
-    lbl = []
-    lbl_for_one_hot = []
-    index = []
-    GroundTruth = ground(len(label[0]))
-    #duplicate를 저장할 파일 열기
+# def selector(images, label, logits, k):
+#     img = []
+#     lbl = []
+#     lbl_for_one_hot = []
+#     index = []
+#     GroundTruth = ground(len(label[0]))
+#     #duplicate를 저장할 파일 열기
 
-    new_f = open('duplicate', 'a')
-    for i in range(len(GroundTruth)):
-        sumArr = GetDist(logits, GroundTruth[i])
-        new_images, new_label, new_index = Rank(sumArr, images, label, k, index)
-        img = img + new_images
-        lbl = lbl + new_label
-        index = index + [new_index]
-    duplicate_count = duplicate(index)
-    #print(duplicate_count, end=" ")
-    #파일에 작성
-    new_f.write(str(duplicate_count))
-    new_f.write('\t')
-    new_f.close()
-    for k in lbl:
-      lbl_for_one_hot.append(k.index(max(k)))
-    return torch.tensor(img), torch.tensor(lbl_for_one_hot)
+#     new_f = open('duplicate', 'a')
+#     for i in range(len(GroundTruth)):
+#         sumArr = GetDist(logits, GroundTruth[i])
+#         new_images, new_label, new_index = Rank(sumArr, images, label, k, index)
+#         img = img + new_images
+#         lbl = lbl + new_label
+#         index = index + [new_index]
+#     duplicate_count = duplicate(index)
+#     #print(duplicate_count, end=" ")
+#     #파일에 작성
+#     new_f.write(str(duplicate_count))
+#     new_f.write('\t')
+#     new_f.close()
+#     for k in lbl:
+#       lbl_for_one_hot.append(k.index(max(k)))
+#     return torch.tensor(img), torch.tensor(lbl_for_one_hot)
 
 def get_replay_with_label(generator, classifier, batchsize, n_class):
 
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
     z_ = z_.to(device)
+
   images = generator(z_)
   label = classifier.predict(images)
   logits = classifier.get_logits(images)
-  images, lbl_for_one_hot = selector(images, label, logits, k)		#추가
-  label = nn.functional.one_hot(lbl_for_one_hot, num_classes = len(label[0]))   #one hot encoding
-  ex_lab = torch.Tensor(len(label)*[(n_class-len(label[0]))*[0]])
-  label = torch.cat((label, ex_lab), 1)
+  
+  selected_samples = []
 
-  return images.to(device), label.to(device)
+  loss_matrix = torch.zeros((batchsize, n_class))
+
+  # Loop through each class to calculate cross-entropy loss
+  for class_idx in range(n_class):
+      
+      # Create a tensor of the current class index
+      class_label = torch.full((batchsize,), class_idx, dtype=torch.long)
+      
+      # Calculate the cross-entropy loss for the current class
+      losses = criterion(logits, class_label)
+
+      # Store the losses in the loss_matrix
+      loss_matrix[:, class_idx] = losses
+  
+  # Initialize a list to store the best sample-class pairs
+  selected_samples = [-1] * batchsize
+  assigned_classes = set()
+
+  # Iterate through each sample
+  for sample_idx in range(batchsize):
+      # Get the losses for the current sample across all classes
+      sample_losses = loss_matrix[sample_idx]
+      
+      # Sort the losses and get the class with the lowest loss
+      sorted_class_indices = torch.argsort(sample_losses)
+      
+      for class_idx in sorted_class_indices:
+          class_idx = class_idx.item()
+          if class_idx not in assigned_classes:
+             selected_samples[sample_idx] = class_idx
+             assigned_classes.add(class_idx)
+             break
+          
+  # Ensure each class gets the best available sample
+  final_selection = [[] for _ in range(n_class)]
+
+  for class_idx in range(n_class):
+      class_losses = []
+      for sample_idx in range(batchsize):
+          if selected_samples[sample_idx] == class_idx:
+             class_losses.append((loss_matrix[sample_idx, class_idx], sample_idx))
+      
+      # Sort the class_losses and pick the best two(k) samples
+      class_losses.sort()
+      final_selection[class_idx] = [sample for _, sample in class_losses[:k]]
+      
+  selected_samples_indices = set(idx for class_samples in final_selection for idx in class_samples)
+  one_hot_selected_samples = torch.eye(n_class)[selected_samples_indices]
+  selected_samples_tensor = torch.stack([images[idx] for idx in selected_samples_indices])
+
+  return selected_samples_tensor.to(device), one_hot_selected_samples.to(device)
 
 
 
@@ -381,13 +468,13 @@ for task in range(nb_task):
       labels = labels.to(device)
 
       if task > 0 :
-        # We concat a batch of previously learned data.
-        # the more there are past tasks more data need to be regenerated.
-          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
+         # We concat a batch of previously learned data.
+         # the more there are past tasks more data need to be regenerated.
+         replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
          #print("len(labels)", len(labels[0]))
          #print("len(re_label)", len(re_label[0]))
-          inputs=torch.cat((inputs,replay),0)
-          labels=torch.cat((labels,re_label),0)
+         inputs=torch.cat((inputs,replay),0)
+         labels=torch.cat((labels,re_label),0)
       outputs, loss = run_batch(C,C_optimizer, inputs, labels)
 
       train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
@@ -409,6 +496,7 @@ for task in range(nb_task):
 
   G_saved = deepcopy(G)
   C_saved = deepcopy(C)
+
 ########
 # Test #
 ########
