@@ -336,14 +336,24 @@ def get_replay_with_label(generator, classifier, batchsize, n_class):
 # Train #
 #########
 
+G.reinit()
+D.reinit()
+
+new_f = open('duplicate', '+w')
+new_f.write("")
+new_f.close()
 
 scaler = StandardScaler()
 
 for task in range(nb_task):
+  
+  new_f = open('duplicate', 'a')
+  new_f.write(' '.join(['task', str(task), '\n']))
+  new_f.close()
 
   n_class = init_classes + task * n_inc
-  # Load data for the current task
 
+  # Load data for the current task
   X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
   nb_batch = int(len(X_train_t)/batchsize)
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
@@ -355,8 +365,13 @@ for task in range(nb_task):
     C.to(device)
 
   for epoch in range(epoch_number):
+
     train_loss = 0.0
     train_acc = 0.0
+
+    new_f = open('duplicate', 'a')
+    new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
+    new_f.close()
 
     for n, (inputs, labels) in enumerate(train_loader):
       
@@ -365,6 +380,14 @@ for task in range(nb_task):
       inputs = inputs.to(device)
       labels = labels.to(device)
 
+      if task > 0 :
+        # We concat a batch of previously learned data.
+        # the more there are past tasks more data need to be regenerated.
+          replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
+         #print("len(labels)", len(labels[0]))
+         #print("len(re_label)", len(re_label[0]))
+          inputs=torch.cat((inputs,replay),0)
+          labels=torch.cat((labels,re_label),0)
       outputs, loss = run_batch(C,C_optimizer, inputs, labels)
 
       train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
@@ -373,6 +396,10 @@ for task in range(nb_task):
       train_acc += torch.sum(preds == class_label)
 
       nb_per_10 = int(nb_batch/10)
+      
+    new_f = open('duplicate', 'a')
+    new_f.write('\n')
+    new_f.close()
 
     print("epoch:", epoch+1)
     train_loss = train_loss / len(X_train_t)
@@ -380,6 +407,8 @@ for task in range(nb_task):
     print("train_loss: ", train_loss)
     print("train_acc: ", train_acc)
 
+  G_saved = deepcopy(G)
+  C_saved = deepcopy(C)
 ########
 # Test #
 ########
