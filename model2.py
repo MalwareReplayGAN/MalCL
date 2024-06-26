@@ -131,9 +131,9 @@ class Discriminator(nn.Module):
     def forward(self, input):
         x = input.view(-1, self.input_channel, self.input_features)
         # print("1-", x.shape) # [16, 1, 2381]
-        feature = self.conv(x)
+        x = self.conv(x)
         # print("2-", x.shape) # [16, 512, 2381]
-        x = feature.view(-1, self.channel_c * self.input_features)
+        feature = x.view(-1, self.channel_c * self.input_features)
         # print("3-", x.shape) # [16, 512*2381]
         x = self.fc(x)
         # print("4-", x.shape) # [16, 1]
