@@ -8,7 +8,7 @@ import pandas
 from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
-from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data
+from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data, shuffle_data
 from function2 import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
 import math
 import time
@@ -32,6 +32,22 @@ if torch.cuda.is_available():
 else:
     print("GPU를 사용할 수 없습니다.")
 
+#####################################
+# Declarations and Hyper-parameters #
+#####################################
+s = 10
+init_classes = 50
+final_classes = 100
+n_inc = 5
+nb_task = int(((final_classes - init_classes) / n_inc) + 1)
+batchsize = 64
+lr = 0.001
+epoch_number = 100
+z_dim = 62
+ls_a = []
+momentum = 0.9
+weight_decay = 0.000001
+
 ##############
 # EMBER DATA #
 ##############
@@ -40,26 +56,12 @@ else:
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
+X_train, Y_train = shuffle_data(X_train, Y_train, s)
+# X_train, Y_train = extract_100data(X_train, Y_train)
 X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 
 feats_length= 2381
 num_training_samples = 303331
-
-#####################################
-# Declarations and Hyper-parameters #
-#####################################
-
-init_classes = 50
-final_classes = 100
-n_inc = 5
-nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 128
-lr = 0.001
-epoch_number = 100
-z_dim = 62
-ls_a = []
-momentum = 0.9
-weight_decay = 0.000001
 
 ##########
 # Models #
@@ -353,29 +355,32 @@ def run_batch(C, C_optimizer, x_, y_):
 #       lbl_for_one_hot.append(k.index(max(k)))
 #     return torch.tensor(img), torch.tensor(lbl_for_one_hot)
 
-def get_replay_with_label(generator, classifier, batchsize, n_class):
+def get_replay_with_label(generator, classifier, batchsize, n_class, task):
 
   z_ = Variable(torch.rand((batchsize, z_dim)))
   if use_cuda:
     z_ = z_.to(device)
 
   images = generator(z_)
-  label = classifier.predict(images)
+  # label = classifier.predict(images)
   logits = classifier.get_logits(images)
+  if use_cuda:
+     logits = logits.to(device)
   
   selected_samples = []
 
   loss_matrix = torch.zeros((batchsize, n_class))
 
   # Loop through each class to calculate cross-entropy loss
-  for class_idx in range(n_class):
+  for class_idx in range(n_class - 5*task):
       
       # Create a tensor of the current class index
       class_label = torch.full((batchsize,), class_idx, dtype=torch.long)
-      
+      if use_cuda:
+         class_label = class_label.to(device)
+
       # Calculate the cross-entropy loss for the current class
       losses = criterion(logits, class_label)
-
       # Store the losses in the loss_matrix
       loss_matrix[:, class_idx] = losses
   
@@ -412,6 +417,7 @@ def get_replay_with_label(generator, classifier, batchsize, n_class):
       final_selection[class_idx] = [sample for _, sample in class_losses[:k]]
       
   selected_samples_indices = set(idx for class_samples in final_selection for idx in class_samples)
+  selected_samples_indices = torch.LongTensor(list(selected_samples_indices))
   one_hot_selected_samples = torch.eye(n_class)[selected_samples_indices]
   selected_samples_tensor = torch.stack([images[idx] for idx in selected_samples_indices])
 
@@ -470,7 +476,7 @@ for task in range(nb_task):
       if task > 0 :
          # We concat a batch of previously learned data.
          # the more there are past tasks more data need to be regenerated.
-         replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
+         replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class, task=task)
          #print("len(labels)", len(labels[0]))
          #print("len(re_label)", len(re_label[0]))
          inputs=torch.cat((inputs,replay),0)

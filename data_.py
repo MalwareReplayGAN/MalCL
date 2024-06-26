@@ -8,7 +8,8 @@ def get_ember_train_data(data_dir):
 
     XY_train = np.load(data_dir + '/XY_train.npz')
     X_train, Y_train = XY_train['X_train'], XY_train['Y_train']
-
+    unique, counts = np.unique(Y_train, return_counts=True)
+    print(unique, counts)
     return X_train, Y_train
 
 def get_ember_test_data(data_dir):
@@ -16,9 +17,13 @@ def get_ember_test_data(data_dir):
     X_test, Y_test = XY_test['X_test'], XY_test['Y_test']
     Y_test = torch.LongTensor(Y_test)
     Y_test_onehot = nn.functional.one_hot(Y_test, num_classes=100)
+
+    unique, counts = np.unique(Y_test, return_counts=True)
+    print(unique, counts)
     return X_test, Y_test, Y_test_onehot
 
-def shuffle_data(x_, y_):
+def shuffle_data(x_, y_, s):
+    random.seed(s)
     indices = list(range(len(x_)))
     random.shuffle(indices)
     x_ = x_[indices]
