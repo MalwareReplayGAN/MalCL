@@ -6,9 +6,9 @@ import numpy as np
 from model import Classifier
 # from function2 import get_iter_test_dataset, get_dataloader, test, oh
 from function2 import get_iter_test_dataset, test, oh, get_iter_train_dataset
-
-from data_ import get_ember_train_data, get_ember_test_data
+from data_ import get_ember_train_data, get_ember_test_data, shuffle_data
 from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
 
 #######
 # GPU #
@@ -28,24 +28,11 @@ if torch.cuda.is_available():
 else:
     print("GPU를 사용할 수 없습니다.")
 
-##############
-# EMBER DATA #
-##############
-
-# Call the Ember Data
-
-data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
-X_train, Y_train = get_ember_train_data(data_dir)
-print("X_train", len(X_train))
-X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
-
-feats_length= 2381
-num_training_samples = 303331
-
 #####################################
 # Declarations and Hyper-parameters #
 #####################################
 
+seeds = [10, 20, 30]
 init_classes = 50
 final_classes = 100
 n_inc = 5
@@ -56,6 +43,20 @@ epoch_number = 100
 z_dim = 62
 momentum = 0.9
 weight_decay = 0.000001
+
+##############
+# EMBER DATA #
+##############
+
+# Call the Ember Data
+
+data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
+X_train, Y_train = get_ember_train_data(data_dir)
+X_train, Y_train = shuffle_data(X_train, Y_train, seeds)
+X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
+
+feats_length= 2381
+num_training_samples = 303331
 
 ##########
 # Models #
@@ -117,8 +118,7 @@ def get_dataloader(x, y, batchsize, n_class, scaler):
     data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
 
     trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler)
-    # trainLoader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize)
-
+    
     return trainLoader, scaler
 
 
@@ -177,6 +177,30 @@ for task in range(nb_task):
         print("The Accuracy for each task:", ls_accuracy)
         print("The Global Average:", sum(ls_accuracy)/len(ls_accuracy))
 
+#########
+# Plots #
+#########
+
+# Error bars (sem)
+sem_accuracy = stats.sem(ls_accuracy)
+
+plt.errorbar(
+    x = np.arange(len(seeds)),
+    y = ls_accuracy,
+    yerr = sem_accuracy,
+    fmt = 'o',
+    ecolor = 'red',
+    capsize = 5,
+    label = 'Accuracy'
+    )
+
+plt.xlabel('Random Seed Index')
+plt.ylabel('Accuracy')
+plt.title('Model Accuracy with SEM Error Bars')
+plt.legend()
+plt.grid(True)
+plt.savefig('accuracy_errorbar_plt.png', format='png', dpi=300)
+plt.show()
 
 
 
