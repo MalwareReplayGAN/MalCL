@@ -6,15 +6,12 @@ import torch.optim as optim
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
-import joblib
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data, shuffle_data
 from function2 import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
-from torch.utils.data import TensorDataset
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
-from scipy import stats
 import os
 
 #######
@@ -106,6 +103,7 @@ class Classifier(nn.Module):
         self.fc1_drop1 = nn.Dropout(self.drop_prob)
         self.fc1_act1 = nn.ReLU()
         
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
 
@@ -128,6 +126,8 @@ class Classifier(nn.Module):
         x = self.fc1_bn1(x)
         x = self.fc1_drop1(x)
         x = self.fc1_act1(x)
+
+        x = self.softmax(x)
 
         # If testing, reshape the output tensor back to the original shape
         if len(original_shape) == 3:
@@ -278,71 +278,71 @@ def run_batch(C, C_optimizer, x_, y_):
 
 def get_replay_with_label(generator, classifier, batchsize, n_class, task):
 
-  z_ = Variable(torch.rand((batchsize, z_dim)))
-  if use_cuda:
-    z_ = z_.to(device)
+    z_ = Variable(torch.rand((batchsize, z_dim)))
+    if use_cuda:
+        z_ = z_.to(device)
 
-  images = generator(z_)
-  # label = classifier.predict(images)
-  logits = classifier.get_logits(images)
-  if use_cuda:
-     logits = logits.to(device)
-  
-  selected_samples = []
+    images = generator(z_)
+    logits = classifier.get_logits(images)
 
-  loss_matrix = torch.zeros((batchsize, n_class))
+    if use_cuda:
+        logits = logits.to(device)
 
-  # Loop through each class to calculate cross-entropy loss
-  for class_idx in range(n_class - 5*task):
-      
-      # Create a tensor of the current class index
-      class_label = torch.full((batchsize,), class_idx, dtype=torch.long)
-      if use_cuda:
-         class_label = class_label.to(device)
+    selected_samples = []
 
-      # Calculate the cross-entropy loss for the current class
-      losses = criterion(logits, class_label)
-      # Store the losses in the loss_matrix
-      loss_matrix[:, class_idx] = losses
-  
-  # Initialize a list to store the best sample-class pairs
-  selected_samples = [-1] * batchsize
-  assigned_classes = set()
+    loss_matrix = torch.zeros((batchsize, n_class)) 
 
-  # Iterate through each sample
-  for sample_idx in range(batchsize):
-      # Get the losses for the current sample across all classes
-      sample_losses = loss_matrix[sample_idx]
-      
-      # Sort the losses and get the class with the lowest loss
-      sorted_class_indices = torch.argsort(sample_losses)
-      
-      for class_idx in sorted_class_indices:
-          class_idx = class_idx.item()
-          if class_idx not in assigned_classes:
-             selected_samples[sample_idx] = class_idx
-             assigned_classes.add(class_idx)
-             break
-          
-  # Ensure each class gets the best available sample
-  final_selection = [[] for _ in range(n_class)]
+    # Loop through each class to calculate cross-entropy loss
+    for class_idx in range(n_class - 5*task):
+        
+        # Create a tensor of the current class index
+        class_label = torch.full((batchsize,), class_idx, dtype=torch.long)
+        if use_cuda:
+            class_label = class_label.to(device)
 
-  for class_idx in range(n_class):
-      class_losses = []
-      for sample_idx in range(batchsize):
-          if selected_samples[sample_idx] == class_idx:
-             class_losses.append((loss_matrix[sample_idx, class_idx], sample_idx))
-      
-      # Sort the class_losses and pick the best two(k) samples
-      class_losses.sort()
-      final_selection[class_idx] = [sample for _, sample in class_losses[:k]]
-      
-  selected_samples_indices = set(idx for class_samples in final_selection for idx in class_samples)
-  selected_samples_indices = torch.LongTensor(list(selected_samples_indices))
-  one_hot_selected_samples = torch.eye(n_class)[selected_samples_indices]
-  selected_samples_tensor = torch.stack([images[idx] for idx in selected_samples_indices])
+        # Calculate the cross-entropy loss for the current class
+        losses = criterion(logits, class_label)
+        # Store the losses in the loss_matrix
+        loss_matrix[:, class_idx] = losses
+    
+    # Initialize a list to store the best sample-class pairs
+    selected_samples = [-1] * batchsize
+    assigned_classes = set()
 
-  return selected_samples_tensor.to(device), one_hot_selected_samples.to(device)
+    # Iterate through each sample
+    for sample_idx in range(batchsize):
+        # Get the losses for the current sample across all classes
+        sample_losses = loss_matrix[sample_idx]
+        
+        # Sort the losses and get the class with the lowest loss
+        sorted_class_indices = torch.argsort(sample_losses)
+        
+        for class_idx in sorted_class_indices:
+            class_idx = class_idx.item()
+            if class_idx not in assigned_classes:
+                selected_samples[sample_idx] = class_idx
+                assigned_classes.add(class_idx)
+                break
+            
+    # Ensure each class gets the best available sample
+    final_selection = [[] for _ in range(n_class)]
+
+    for class_idx in range(n_class):
+        class_losses = []
+        for sample_idx in range(batchsize):
+            if selected_samples[sample_idx] == class_idx:
+                class_losses.append((loss_matrix[sample_idx, class_idx], sample_idx))
+        
+        # Sort the class_losses and pick the best two(k) samples
+        class_losses.sort()
+        final_selection[class_idx] = [sample for _, sample in class_losses[:k]]
+        
+    selected_samples_indices = set(idx for class_samples in final_selection for idx in class_samples)
+    selected_samples_indices = torch.LongTensor(list(selected_samples_indices))
+    one_hot_selected_samples = torch.eye(n_class)[selected_samples_indices]
+    selected_samples_tensor = torch.stack([images[idx] for idx in selected_samples_indices])
+
+    return selected_samples_tensor.to(device), one_hot_selected_samples.to(device)
 
 
 
@@ -364,6 +364,14 @@ all_results = {task: [] for task in range(nb_task)}
 
 for seed in seeds:
     X_train, Y_train = shuffle_data(X_train, Y_train, seed)
+
+    C = Classifier()
+    C.train()
+    C.to(device)
+
+    weight_decay = 0.000001
+    C_optimizer = optim.SGD(C.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss()
 
     for task in range(nb_task):
         
@@ -492,7 +500,7 @@ for task in range(nb_task):
     std_metrics = np.std(all_metrics, axis=0)
 
     # Plot error bars
-    plt.figure(figsize(10, 6))
+    plt.figure(figsize=(10, 6))
     epochs = range(1, epoch_number+1)
     plt.errorbar(epochs, mean_metrics, yerr=std_metrics, fmt='-o', capsize=5, label='Accuracy')
     plt.title(f'Error Bars for Task {task}')
