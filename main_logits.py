@@ -44,9 +44,9 @@ init_classes = 50
 final_classes = 100
 n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 128
+batchsize = 256
 lr = 0.001
-epoch_number = 100
+epoch_number = 10
 z_dim = 62
 ls_a = []
 momentum = 0.9
@@ -178,8 +178,8 @@ class Classifier(nn.Module):
         x = self.block1(x)
         x = self.block2(x)
 
-        x = self.fc1_f(x)
-        logits = self.fc2(x)  # Get logits directly from the linear layer
+        logits = self.fc1_f(x)
+        #logits = self.fc2(x)  # Get logits directly from the linear layer
 
         return logits
 
@@ -317,10 +317,14 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
   #  arr[i] = list(arr[i])
   #arr = np.array(arr)
   #arr.T
-  for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[arr.sort(0)[1][:n_class-5]]])
+  if batchsize<(n_class-5)*2:
+      sample_num = batchsize
+  else: sample_num = (n_class-5)*2
+
+  for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[arr.sort(0)[1][:sample_num]]])
   #print("for_one_hot", for_one_hot)
     #sample return
-  return images[arr.sort(0)[1][:n_class-5]].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
+  return images[arr.sort(0)[1][:sample_num]].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
 
 
 #########
