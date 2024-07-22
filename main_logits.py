@@ -28,7 +28,7 @@ use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-torch.manual_seed(0)
+torch.manual_seed(20)
 
 if torch.cuda.is_available():
     device_count = torch.cuda.device_count()
@@ -46,7 +46,7 @@ n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 256
 lr = 0.001
-epoch_number = 10
+epoch_number = 50
 z_dim = 62
 ls_a = []
 momentum = 0.9
@@ -65,6 +65,77 @@ X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 
 feats_length= 2381
 num_training_samples = 303331
+
+############################################
+# data random arange #
+#############################################
+
+
+import random
+import copy
+import matplotlib.pyplot as plt
+'''
+data_per_class = []
+
+for i in range(final_classes):
+  data_per_class.append(list(Y_train).count(i))
+
+print("before random")
+
+x = np.arange(final_classes)
+plt.bar(x, data_per_class)
+
+plt.show()
+'''
+#################################################
+
+#class_arr = np.arange(final_classes)
+class_arr_task_1 = np.arange(init_classes)
+class_arr_next_tasks = np.arange(init_classes, final_classes)
+indices = torch.randperm(50)
+class_arr_next_tasks = torch.index_select(torch.Tensor(class_arr_next_tasks), dim=0, index=indices)
+class_arr_next_tasks = np.array(class_arr_next_tasks)
+
+class_arr = np.concatenate((class_arr_task_1, class_arr_next_tasks), axis = 0)
+class_arr = list(class_arr)
+Y_train_ = copy.deepcopy(Y_train)
+Y_test_ = copy.deepcopy(Y_test)
+
+for i in range(init_classes, final_classes):
+  Y_train[np.where(Y_train_ == class_arr[i])] = i
+  Y_test[np.where(Y_test_ == class_arr[i])] = i
+
+####################################################
+
+
+print("class_arr")
+print(class_arr)
+
+
+
+'''
+data_per_class_after = []
+
+for i in range(final_classes):
+  data_per_class_after.append(list(Y_train).count(i))
+
+print("after random")
+
+x = np.arange(final_classes)
+plt.bar(x, data_per_class_after)
+
+plt.show()
+
+
+for i in range(final_classes):
+  if data_per_class[class_arr[i]] != data_per_class_after[i]:
+     print("the amount of data is not same as before random change")
+'''
+
+
+
+
+
 
 ##########
 # Models #
@@ -284,47 +355,29 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
   if use_cuda:
     z_ = z_.to(device)
 
-  images = generator(z_)
+  images = generator(z_)    # generate samples
 
-  label = classifier.predict(images)
-  logits = classifier.get_logits(images)
+  label = classifier.predict(images)    #predict label of generated samples
+  logits = classifier.get_logits(images)    #get logits from generated samples
   if use_cuda:
      logits = logits.to(device)
 
-  #print("logits.shape")
-  #print(logits.shape)
-    #L1 dist 구하
+    #compute distance
   for log in logits:
     arr.append(torch.mean(torch.abs(log - logits_aver)))
-  '''
-  print("log.shape")
-  print(log.shape)
-  print("(torch.abs(log - logits_aver)).shape")
-  print((torch.abs(log - logits_aver)).shape)
-  print("torch.mean(torch.abs(log - logits_aver)).shape")
-  print(torch.mean(torch.abs(log - logits_aver)).shape)
-  print("torch.mean(torch.abs(log - logits_aver))")
-  print(torch.mean(torch.abs(log - logits_aver)))
-  '''
-
+ 
   arr = torch.Tensor(arr).to(device)
-  #print("arr.shape")
-  #print(arr.shape)
-  #arr = torch.array([arr, list(np.arange(len(arr)))])
-  #arr = arr.transpose()
-  #arr = arr.sort(key = lambda arr: arr[0])
-  #for i in range(len(arr)):
-  #  arr[i] = list(arr[i])
-  #arr = np.array(arr)
-  #arr.T
-  if batchsize<(n_class-5)*2:
-      sample_num = batchsize
-  else: sample_num = (n_class-5)*2
 
-  for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[arr.sort(0)[1][:sample_num]]])
-  #print("for_one_hot", for_one_hot)
-    #sample return
-  return images[arr.sort(0)[1][:sample_num]].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
+
+  if batchsize<(n_class-5)*k:
+      sample_num = batchsize
+  else: sample_num = (n_class-5)*k
+
+  # sort the samples based on distance
+  sorted_index = arr.sort(0)[1][:sample_num]
+  for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[sorted_index]])
+
+  return images[sorted_index].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
 
 
 #########
@@ -343,6 +396,7 @@ scaler = StandardScaler()
 # Placeholder to store results for each task and each run
 all_results = {task: [] for task in range(nb_task)}
 logits_arr = []
+logits_batch_arr = []
 logits_aver = 0
 
 X_train, Y_train = shuffle_data(X_train, Y_train)
@@ -403,8 +457,9 @@ for task in range(nb_task):
                 # Collecting all predictions and labels
             all_preds.append(preds.cpu().numpy())
             all_labels.append(class_label.cpu().numpy())
-            if epoch == epoch_number-1:
-                logits_arr.append(C.get_logits(inputs))
+
+            logits_batch_arr.append(C.get_logits(inputs))   # for each batch, compute logit and append to an array
+
             print("\r", task, "task", epoch+1, "epoch", n, "batch", end="")
             
         new_f = open('duplicate', 'a')
@@ -417,25 +472,23 @@ for task in range(nb_task):
         print("train_loss: ", train_loss)
         print("train_acc: ", train_acc)
         metrics_per_epoch.append(train_acc)
-            
+
+        logits_arr.append(torch.mean(torch.stack(logits_batch_arr, dim=0), dim=0))  # in the end of each epoch, compute mean vector of all logit vectors
+        # shape = [epoch number, batch size, logit size]
+
+        logits_batch_arr = []   # empty the array for next epoch
 
     G_saved = deepcopy(G)
     C_saved = deepcopy(C)
     all_results[task].append(metrics_per_epoch)
-    #print("logits_arr.shape")
-    #print(torch.stack(logits_arr).shape)
-    logits_aver = torch.mean(torch.stack(logits_arr, dim=0), dim=0)
-    logits_aver = torch.mean(logits_aver, dim = 0)
-    #print("logits_aver.shape")
-    #print(logits_aver.shape)
 
-    #logits_arr = copy.deepcopy(torch.Tensor(logits_arr_new))
-    #logits_arr = list(logits_arr)
-    #print("logits_arr")
-    #print(logits_arr)
-    #print("logits_arr_new")
-    #print(logits_arr_new)
-    logits_arr = []
+    logits_aver = torch.mean(torch.stack(logits_arr, dim=0), dim=0) # in the end of each task, compute mean vector
+    # shape = [batch size, logit size]
+
+    logits_aver = torch.mean(logits_aver, dim = 0)
+    # shape = [logit size]
+
+    logits_arr = [] # empty the array for next task
 
     ########
     # Test #
