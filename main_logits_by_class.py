@@ -389,26 +389,14 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
 G.reinit()
 D.reinit()
 
-new_f = open('duplicate', '+w')
-new_f.write("")
-new_f.close()
-
 scaler = StandardScaler()
 
-# Placeholder to store results for each task and each run
-all_results = {task: [] for task in range(nb_task)}
 logits_arr = [[] for x in range(100)]
 logits_arr_class = []
-logits_aver = 0
 
 X_train, Y_train = shuffle_data(X_train, Y_train)
 
 for task in range(nb_task):
-        
-    new_f = open('duplicate', 'a')
-    new_f.write(' '.join(['task', str(task), '\n']))
-    new_f.close()
-
     n_class = init_classes + task * n_inc
 
         # Load data for the current task
@@ -449,6 +437,7 @@ for task in range(nb_task):
                 replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class, task=task, logits_arr_class = logits_arr_class)
                 inputs=torch.cat((inputs,replay),0)
                 labels=torch.cat((labels,re_label),0)
+                
             outputs, loss = run_batch(C,C_optimizer, inputs, labels)
 
             train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
