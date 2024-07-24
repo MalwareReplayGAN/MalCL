@@ -86,12 +86,13 @@ init_classes = 50
 final_classes = 100
 n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 128
+batchsize = 256
 lr = 0.001
-epoch_number = 10
+epoch_number = 100
 z_dim = 62
 k = 2
-
+momentum = 0.9
+weight_decay = 0.000001
 ############################################
 # data random arange #
 #############################################
@@ -100,7 +101,7 @@ k = 2
 import random
 import copy
 import matplotlib.pyplot as plt
-
+'''
 data_per_class = []
 
 for i in range(final_classes):
@@ -112,12 +113,16 @@ x = np.arange(final_classes)
 plt.bar(x, data_per_class)
 
 plt.show()
-
+'''
+#################################################
 
 #class_arr = np.arange(final_classes)
 class_arr_task_1 = np.arange(init_classes)
 class_arr_next_tasks = np.arange(init_classes, final_classes)
-random.shuffle(class_arr_next_tasks)
+indices = torch.randperm(50)
+class_arr_next_tasks = torch.index_select(torch.Tensor(class_arr_next_tasks), dim=0, index=indices)
+class_arr_next_tasks = np.array(class_arr_next_tasks)
+
 class_arr = np.concatenate((class_arr_task_1, class_arr_next_tasks), axis = 0)
 class_arr = list(class_arr)
 Y_train_ = copy.deepcopy(Y_train)
@@ -127,12 +132,15 @@ for i in range(init_classes, final_classes):
   Y_train[np.where(Y_train_ == class_arr[i])] = i
   Y_test[np.where(Y_test_ == class_arr[i])] = i
 
+####################################################
+
+
 print("class_arr")
 print(class_arr)
 
 
 
-
+'''
 data_per_class_after = []
 
 for i in range(final_classes):
@@ -149,6 +157,7 @@ plt.show()
 for i in range(final_classes):
   if data_per_class[class_arr[i]] != data_per_class_after[i]:
      print("the amount of data is not same as before random change")
+'''
 
 
 
@@ -178,7 +187,7 @@ if use_cuda:
 '''
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
-C_optimizer = optim.Adam(C.parameters(), lr=lr)
+C_optimizer = optim.SGD(C.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
@@ -348,7 +357,7 @@ for task in range(nb_task):
   print("get_dataloader")
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
   print("get_iter_test_dataset")
-  X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
+  X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
@@ -426,7 +435,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device, scaler = scaler)
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
       test_accuracy_array.append(ls_accuracy)
       test_result = "test_acc: " + str(ls_accuracy) + "\n"
       result_f = open(result_name, 'a')
