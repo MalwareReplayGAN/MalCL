@@ -291,42 +291,17 @@ def get_replay_with_label_no_select(generator, classifier, batchsize, n_class):
 G.reinit()
 D.reinit()
 
-import datetime
-result_name = datetime.datetime.now()
-date_str = result_name.strftime("%Y.%m.%d.%H:%M:%S")
-print(date_str)
-result_name = "result_" + date_str
-result_f = open(result_name, '+w')
-result_f.write("")
-result_f.close()
-
 test_accuracy_array = []
-new_f = open('duplicate', '+w')
-new_f.write("")
-new_f.close()
-
 scaler = StandardScaler()
 
 for task in range(nb_task):
-  new_f = open('duplicate', 'a')
-  new_f.write(' '.join(['task', str(task), '\n']))
-  new_f.close()
-
-  result_f = open(result_name, 'a')
-  result_f.write(' '.join(['task', str(task), '\n']))
-  result_f.close()
-
   n_class = init_classes + task * n_inc
+    
   # Load data for the current task
-  print("get_iter_train_dataset")
   X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
   nb_batch = int(len(X_train_t)/batchsize)
   print("nb_batch", nb_batch)
-  print("len(X_train_t)", len(X_train_t))
-  print("len(X_train_t[0])", len(X_train_t[0]))
-  print("get_dataloader")
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
-  print("get_iter_test_dataset")
   X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
@@ -336,9 +311,6 @@ for task in range(nb_task):
     new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
     new_f.close()
 
-#    result_f = open(result_name, 'a')
-#    result_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
-#    result_f.close()
 
     for n, (inputs, labels) in enumerate(train_loader):
       
@@ -351,24 +323,16 @@ for task in range(nb_task):
         # We concat a batch of previously learned data.
         # the more there are past tasks more data need to be regenerated.
           replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
-          #print("len(labels)", len(labels[0]))
-          #print("len(re_label)", len(re_label[0]))
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
       C = C.expand_output_layer(init_classes, n_inc, task)
       C = C
       C.to(device)
-#        print("before run_batch n", n)
       outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
-#        print("after run_batch n", n)
       train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
       _, preds = torch.max(outputs, 1)
-#        print("preds", preds)
-#        print("labels.data", labels.data)
       class_label = torch.argmax(labels.data, dim=-1)
-#        print("class_label", class_label)
-#        print("torch.sum(preds == labels.data)", torch.sum(preds == class_label))
       train_acc += torch.sum(preds == class_label)
 
       nb_per_10 = int(nb_batch/10)
