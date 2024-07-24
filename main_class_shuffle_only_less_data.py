@@ -140,27 +140,6 @@ print(class_arr)
 
 
 
-'''
-data_per_class_after = []
-
-for i in range(final_classes):
-  data_per_class_after.append(list(Y_train).count(i))
-
-print("after random")
-
-x = np.arange(final_classes)
-plt.bar(x, data_per_class_after)
-
-plt.show()
-
-
-for i in range(final_classes):
-  if data_per_class[class_arr[i]] != data_per_class_after[i]:
-     print("the amount of data is not same as before random change")
-'''
-
-
-
 
 ##########
 # Models #
@@ -198,12 +177,9 @@ BCELoss = nn.BCELoss()
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
-      # print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
 
-      # y_real and y_fake are the label for fake and true data
       y_real_ = Variable(torch.ones(x_.size(0), 1))
       y_fake_ = Variable(torch.zeros(x_.size(0), 1))
-      # print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
 
       if use_cuda:
         y_real_, y_fake_ = y_real_.to(device), y_fake_.to(device)
@@ -218,16 +194,11 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update D network
       D_optimizer.zero_grad()
 
-      D_real = D(x_)
-      # print("D_real shape", D_real.shape) # [16, 1]
-      # print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
+      D_real = D(x_) 
       D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
       G_ = G(z_)
-      # print('G_ shape', G_.shape) # 16, 2381
       D_fake = D(G_)
-      # print("D_fake shape", D_fake.shape) # 16, 1
-      # print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape) # 16, 1
       D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
       D_loss = D_real_loss + D_fake_loss
@@ -248,7 +219,6 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update C
 
       C_optimizer.zero_grad()
-      # print("y_ shape", y_.shape) # 16
       output = C(x_)
       if use_cuda:
          output = output.to(device)
