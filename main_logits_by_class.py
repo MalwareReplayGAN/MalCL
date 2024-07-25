@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import joblib
-from model import Generator, Discriminator
+from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data, shuffle_data
 from function import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
 from torch.utils.data import TensorDataset
@@ -46,7 +46,7 @@ n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 256
 lr = 0.001
-epoch_number = 10
+epoch_number = 50
 z_dim = 62
 ls_a = []
 momentum = 0.9
@@ -117,14 +117,14 @@ print(class_arr)
 ##########
 # Models #
 ##########
-
+'''
 class Classifier(nn.Module):
 
     def __init__(self):
         super(Classifier, self).__init__()
 
         self.input_features = 2381
-        self.output_dim = 5
+        self.output_dim = 50
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
@@ -230,7 +230,7 @@ class Classifier(nn.Module):
         #logits = self.fc2(x)  # Get logits directly from the linear layer
 
         return logits
-
+'''
 ##############
 # Parameters #
 ##############
@@ -267,10 +267,9 @@ k=2
 # Functions # 
 #############
 
-def run_batch(C, C_optimizer, x_, y_):
+def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
 
     x_ = x_.view([-1, feats_length])
-    x_ = Variable(x_)
       
     # y_real and y_fake are the label for fake and true data
 
@@ -339,36 +338,19 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
   logits = classifier.get_logits(images)
   if use_cuda:
      logits = logits.to(device)
-  '''
-  for log_class in logits_arr_class:
-      arr = []
-      for log_gen in logits:
-          arr.append(torch.abs(log_class-log_gen))
-      arr = torch.Tensor(arr).to(device)
-      sort_order = arr.sort(0)[1]
-      sort_order.delete(arr_return)
-      for i in range(k):
-          arr_return.append(sort_order[i])
-  '''
 
   for log_class in logits_arr_class:
-      #print("log_class")
-      #print(log_class)
       if log_class == []:
         continue
       arr = []
       for log_gen in logits:
           arr.append(torch.mean(torch.abs(log_class-log_gen)))
       arr = torch.stack(arr).to(device)
-      #print("arr.shape")
-      #print(arr.shape)
       sort_order = arr.sort(0)[1]
-      #print(sort_order)
+
       sort_order = sort_order.tolist()
       for remove_index in arr_return:
         sort_order.remove(remove_index)
-      #print("sort_order")
-      #print(sort_order)
       if len(sort_order) < k:
         for so in sort_order:
           arr_return.append(so)
@@ -377,8 +359,7 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
           arr_return.append(sort_order[i])
 
   for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[arr_return]])
-  #print("for_one_hot", for_one_hot)
-    #sample return
+
   return images[arr_return].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
 
 
@@ -389,14 +370,26 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task, logit
 G.reinit()
 D.reinit()
 
+new_f = open('duplicate', '+w')
+new_f.write("")
+new_f.close()
+
 scaler = StandardScaler()
 
+# Placeholder to store results for each task and each run
+all_results = {task: [] for task in range(nb_task)}
 logits_arr = [[] for x in range(100)]
 logits_arr_class = []
+logits_aver = 0
 
 X_train, Y_train = shuffle_data(X_train, Y_train)
 
 for task in range(nb_task):
+        
+    new_f = open('duplicate', 'a')
+    new_f.write(' '.join(['task', str(task), '\n']))
+    new_f.close()
+
     n_class = init_classes + task * n_inc
 
         # Load data for the current task
@@ -409,10 +402,10 @@ for task in range(nb_task):
     all_preds = []
     all_labels = []
 
-
-    C = C.expand_output_layer(init_classes, n_inc, task)
-    C = C
-    C.to(device)
+    if task>0:
+        C = C.expand_output_layer(init_classes, n_inc, task)
+        C = C
+        C.to(device)
 
     metrics_per_epoch = [] # Placeholder for metrics per epoch
     for epoch in range(epoch_number):
@@ -437,8 +430,8 @@ for task in range(nb_task):
                 replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class, task=task, logits_arr_class = logits_arr_class)
                 inputs=torch.cat((inputs,replay),0)
                 labels=torch.cat((labels,re_label),0)
-                
-            outputs, loss = run_batch(C,C_optimizer, inputs, labels)
+
+            outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
 
             train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
             _, preds = torch.max(outputs, 1)
@@ -487,7 +480,7 @@ for task in range(nb_task):
 
     with torch.no_grad():
             
-        accuracy = test(model=C, x_train = X_train_t, y_train = Y_train_t, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
+        accuracy = test(model=C, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
         ls_a.append(accuracy)
 
     print("task", task, "done")
