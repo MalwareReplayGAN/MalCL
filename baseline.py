@@ -21,10 +21,10 @@ use_cuda = use_cuda and torch.cuda.is_available()
 # EMBER DATA #
 ##############
 
-data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
+data_dir = '/home/02mjpark/downloads/Continual_Learning_Malware_Datasets/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir) # get the ember train data
 Y_train_oh = oh(Y_train, num_classes=100) # one hot encoding of Y_train
-X_train, Y_train_oh = shuffle_data(X_train, Y_train_oh) 
+X_train, Y_train_oh = shuffle_data(X_train, Y_train_oh, 0) 
 
 ####################
 # Classifier Model #
@@ -37,55 +37,24 @@ class Classifier(nn.Module):
         self.input_features = 2381
         self.output_dim = 100
         self.drop_prob = 0.5
-
-        
-        # self.fc1 = nn.Linear(self.input_features, 1024)
-        # self.fc1_bn = nn.BatchNorm1d(1024)
-        # self.fc1_drop = nn.Dropout(self.drop_prob)
-        # self.act1 = nn.ReLU()
-
-        # self.fc2 = nn.Linear(1024, 512)
-        # self.fc2_bn = nn.BatchNorm1d(512)
-        # self.fc2_drop = nn.Dropout(self.drop_prob)
-        # self.act2 = nn.ReLU()
-
-        # self.fc3 = nn.Linear(512, 256)
-        # self.fc3_bn = nn.BatchNorm1d(256)
-        # self.fc3_drop = nn.Dropout(self.drop_prob)
-        # self.act3 = nn.ReLU()
-
-        # self.fc4 = nn.Linear(256, 128)
-        # self.fc4_bn = nn.BatchNorm1d(128)
-        # self.fc4_drop = nn.Dropout(0.5)
-        # self.act4 = nn.ReLU()
-
-        # self.fc5 = nn.Linear(128, self.output_dim)
-        # self.fc5_bn = nn.BatchNorm1d(self.output_dim)
-        # self.fc5_drop = nn.Dropout(0.5)
-        # self.act5 = nn.ReLU()
-
-        # self.softmax = nn.Softmax()
+        self.batchsize = 256
 
         self.block1 = nn.Sequential(
-            nn.Conv1d(self.input_features, 1024, kernel_size=3, stride=3, padding=1),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            nn.Conv1d(1024, 512, 3, 3, 1),
+            nn.Conv1d(self.input_features, 512, kernel_size=3, stride=3, padding=1),
             nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Conv1d(512, 256, 3, 3, 1),
+            nn.BatchNorm1d(256),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
             nn.MaxPool1d(3, 3, 1)
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv1d(512, 256, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
             nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(128),
             nn.Dropout(self.drop_prob),
-            nn.ReLU(),
-            nn.MaxPool1d(3, 3, 1)
+            nn.ReLU()
         )
         
         self.fc1 = nn.Sequential(
@@ -100,32 +69,7 @@ class Classifier(nn.Module):
 
     def forward(self, x):
         
-        # x = x.view(-1, self.input_features)
-        # x = self.fc1(x)
-        # x = self.fc1_bn(x)
-        # x = self.fc1_drop(x)
-        # x = self.act1(x)
-
-        # x = self.fc2(x)
-        # x = self.fc2_bn(x)
-        # x = self.fc2_drop(x)
-        # x = self.act2(x)
-
-        # x = self.fc3(x)
-        # x = self.fc3_bn(x)
-        # x = self.fc3_drop(x)
-        # x = self.act3(x)
-
-        # x = self.fc4(x)
-        # x = self.fc4_bn(x)
-        # x = self.fc4_drop(x)
-        # x = self.act4(x)
-        
-        # x = self.fc5(x)
-        # x = self.fc5_bn(x)
-        # x = self.fc5_drop(x)
-        # x = self.act5(x)
-        x = x.view(64, self.input_features, -1)
+        x = x.view(self.batchsize, self.input_features, -1)
         x = self.block1(x)
         x = self.block2(x)
         x = self.fc1(x)
@@ -143,8 +87,8 @@ class Classifier(nn.Module):
 # Declarations and Hyper-parameters #
 #####################################
 lr = 0.001
-epoch_number = 100
-batchsize = 64
+epoch_number = 50
+batchsize = 256
 momentum = 0.9
 weight_decay = 0.000001
 nb_batch = int(len(X_train)/batchsize)
