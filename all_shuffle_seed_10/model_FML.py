@@ -131,11 +131,11 @@ class Discriminator(nn.Module):
         # print("1-", x.shape) # [16, 1, 2381]
         x = self.conv(x)
         # print("2-", x.shape) # [16, 512, 2381]
-        x = x.view(-1, self.channel_c * self.input_features)
+        feature = x.view(-1, self.channel_c * self.input_features)
         # print("3-", x.shape) # [16, 512*2381]
-        x = self.fc(x)
+        x = self.fc(feature)
         # print("4-", x.shape) # [16, 1]
-        return x.view(-1, 1)
+        return x.view(-1, 1), feature
     
 class Classifier(nn.Module):
 
@@ -180,25 +180,21 @@ class Classifier(nn.Module):
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
-            nn.Conv1d(self.input_features, 1024, kernel_size=3, stride=3, padding=1),
-            nn.BatchNorm1d(1024),
-            nn.ReLU(),
-            nn.Conv1d(1024, 512, 3, 3, 1),
+            nn.Conv1d(self.input_features, 512, kernel_size=3, stride=3, padding=1),
             nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Conv1d(512, 256, 3, 3, 1),
+            nn.BatchNorm1d(256),
             nn.Dropout(self.drop_prob),
             nn.ReLU(),
             nn.MaxPool1d(3, 3, 1)
         )
 
         self.block2 = nn.Sequential(
-            nn.Conv1d(512, 256, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(256, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm1d(128),
             nn.Dropout(self.drop_prob),
-            nn.ReLU(),
-            nn.MaxPool1d(3, 3, 1)
+            nn.ReLU()
         )
         
         self.fc1_f = nn.Flatten()
@@ -298,7 +294,24 @@ class Classifier(nn.Module):
         return result
         # return torch.argmax(z,axis=1) #가장 큰 인덱스 리턴
 
+    def get_logits(self, x):
+        
+        # Get the original shape of the input tensor
+        original_shape = x.size()
 
+        if len(original_shape) == 2:
+            batch_size = original_shape[0]
+        elif len(original_shape) == 3:
+            batch_size = original_shape[0] * original_shape[1]
+            x = x.view(batch_size, self.input_features)
+
+        x = x.view(batch_size, self.input_features, -1)
+        x = self.block1(x)
+        x = self.block2(x)
+
+        logits = self.fc1_f(x)
+        
+        return logits
 
 # data_size = (16, 1, 2381) # 배치 크기, 채널, 시퀀스 길이
 # conv1d = nn.Conv1d(in_channels=1, out_channels=16, kernel_size=3) out_channels는 출력 데이터의 채널 개수. 컨볼루션 필터의 개수를 의미하며, 출력데이터가 몇 개의 특징 맵으로 변환되는지

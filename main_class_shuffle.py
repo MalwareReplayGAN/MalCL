@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data
-from function2 import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
+from function import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
 import math
 import time
 from torch.utils.data import TensorDataset
@@ -51,7 +51,7 @@ use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-torch.manual_seed(0)
+torch.manual_seed(10)
 
 if torch.cuda.is_available():
     device_count = torch.cuda.device_count()
@@ -86,11 +86,13 @@ init_classes = 50
 final_classes = 100
 n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 128
+batchsize = 256
 lr = 0.001
-epoch_number = 10
+epoch_number = 100
 z_dim = 62
 k = 2
+momentum = 0.9
+weight_decay = 0.000001
 
 ############################################
 # data random arange #
@@ -101,21 +103,10 @@ import random
 import copy
 import matplotlib.pyplot as plt
 
-data_per_class = []
-
-for i in range(final_classes):
-  data_per_class.append(list(Y_train).count(i))
-
-print("before random")
-
-x = np.arange(final_classes)
-plt.bar(x, data_per_class)
-
-plt.show()
-
-
 class_arr = np.arange(final_classes)
-random.shuffle(class_arr)
+indices = torch.randperm(final_classes)
+class_arr = torch.index_select(torch.Tensor(class_arr), dim=0, index=indices)
+
 class_arr = list(class_arr)
 Y_train_ = copy.deepcopy(Y_train)
 Y_test_ = copy.deepcopy(Y_test)
@@ -126,27 +117,6 @@ for i in range(final_classes):
 
 print("class_arr")
 print(class_arr)
-
-
-
-
-data_per_class_after = []
-
-for i in range(final_classes):
-  data_per_class_after.append(list(Y_train).count(i))
-
-print("after random")
-
-x = np.arange(final_classes)
-plt.bar(x, data_per_class_after)
-
-plt.show()
-
-
-for i in range(final_classes):
-  if data_per_class[class_arr[i]] != data_per_class_after[i]:
-     print("the amount of data is not same as before random change")
-
 
 
 
@@ -175,7 +145,7 @@ if use_cuda:
 '''
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
-C_optimizer = optim.Adam(C.parameters(), lr=lr)
+C_optimizer = optim.SGD(C.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
@@ -345,7 +315,7 @@ for task in range(nb_task):
   print("get_dataloader")
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
   print("get_iter_test_dataset")
-  X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
+  X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
@@ -423,7 +393,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device, scaler = scaler)
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
       test_accuracy_array.append(ls_accuracy)
       test_result = "test_acc: " + str(ls_accuracy) + "\n"
       result_f = open(result_name, 'a')
@@ -439,4 +409,4 @@ for task in range(nb_task):
 
 PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
 torch.save(C.state_dict(), PATH)
-joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 수정
+joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 

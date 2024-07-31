@@ -6,13 +6,22 @@ import torch.optim as optim
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+<<<<<<< HEAD:Main_Logits.py
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data, shuffle_data
 from function2 import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
+=======
+import joblib
+from model import Generator, Discriminator
+from data_ import get_ember_train_data, extract_100data, oh, get_ember_test_data, shuffle_data
+from function import get_iter_train_dataset, get_iter_test_dataset, selector, test, get_dataloader
+from torch.utils.data import TensorDataset
+>>>>>>> 825518fc14f3cc3126dc9359f210ef62cb88d67b:main_logits.py
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
+import copy
 
 #######
 # GPU #
@@ -24,7 +33,7 @@ use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-torch.manual_seed(0)
+torch.manual_seed(10)
 
 if torch.cuda.is_available():
     device_count = torch.cuda.device_count()
@@ -40,9 +49,9 @@ init_classes = 50
 final_classes = 100
 n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 64
+batchsize = 256
 lr = 0.001
-epoch_number = 100
+epoch_number = 50
 z_dim = 62
 ls_a = []
 momentum = 0.9
@@ -62,6 +71,54 @@ X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 feats_length= 2381
 num_training_samples = 303331
 
+############################################
+# data random arange #
+#############################################
+
+
+import random
+import copy
+import matplotlib.pyplot as plt
+'''
+data_per_class = []
+
+for i in range(final_classes):
+  data_per_class.append(list(Y_train).count(i))
+
+print("before random")
+
+x = np.arange(final_classes)
+plt.bar(x, data_per_class)
+
+plt.show()
+'''
+#################################################
+
+#class_arr = np.arange(final_classes)
+class_arr_task_1 = np.arange(init_classes)
+class_arr_next_tasks = np.arange(init_classes, final_classes)
+indices = torch.randperm(50)
+class_arr_next_tasks = torch.index_select(torch.Tensor(class_arr_next_tasks), dim=0, index=indices)
+class_arr_next_tasks = np.array(class_arr_next_tasks)
+
+class_arr = np.concatenate((class_arr_task_1, class_arr_next_tasks), axis = 0)
+class_arr = list(class_arr)
+Y_train_ = copy.deepcopy(Y_train)
+Y_test_ = copy.deepcopy(Y_test)
+
+for i in range(init_classes, final_classes):
+  Y_train[np.where(Y_train_ == class_arr[i])] = i
+  Y_test[np.where(Y_test_ == class_arr[i])] = i
+
+####################################################
+
+
+print("class_arr")
+print(class_arr)
+
+
+
+
 ##########
 # Models #
 ##########
@@ -72,7 +129,7 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
 
         self.input_features = 2381
-        self.output_dim = 50
+        self.output_dim = 5
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
@@ -99,6 +156,7 @@ class Classifier(nn.Module):
         
         self.fc1_f = nn.Flatten()
         self.fc1 = nn.Linear(128, self.output_dim)
+
         self.fc1_bn1 = nn.BatchNorm1d(self.output_dim)
         self.fc1_drop1 = nn.Dropout(self.drop_prob)
         self.fc1_act1 = nn.ReLU()
@@ -176,8 +234,8 @@ class Classifier(nn.Module):
         x = self.block1(x)
         x = self.block2(x)
 
-        x = self.fc1_f(x)
-        logits = self.fc1(x)  # Get logits directly from the linear layer
+        logits = self.fc1_f(x)
+        #logits = self.fc2(x)  # Get logits directly from the linear layer
 
         return logits
 
@@ -276,6 +334,7 @@ def run_batch(C, C_optimizer, x_, y_):
 
     return output, C_loss
 
+<<<<<<< HEAD:Main_Logits.py
 def get_replay_with_label(generator, classifier, batchsize, n_class, task):
 
     z_ = Variable(torch.rand((batchsize, z_dim)))
@@ -343,7 +402,55 @@ def get_replay_with_label(generator, classifier, batchsize, n_class, task):
     selected_samples_tensor = torch.stack([images[idx] for idx in selected_samples_indices])
 
     return selected_samples_tensor.to(device), one_hot_selected_samples.to(device)
+=======
+def get_replay_with_label(generator, classifier, batchsize, n_class, task, logits_aver):
+  arr = []
+  z_ = Variable(torch.rand((batchsize, z_dim)))
+  if use_cuda:
+    z_ = z_.to(device)
 
+  images = generator(z_)
+
+  label = classifier.predict(images)
+  logits = classifier.get_logits(images)
+  if use_cuda:
+     logits = logits.to(device)
+>>>>>>> 825518fc14f3cc3126dc9359f210ef62cb88d67b:main_logits.py
+
+  #print("logits.shape")
+  #print(logits.shape)
+    #L1 dist 구하
+  for log in logits:
+    arr.append(torch.mean(torch.abs(log - logits_aver)))
+  '''
+  print("log.shape")
+  print(log.shape)
+  print("(torch.abs(log - logits_aver)).shape")
+  print((torch.abs(log - logits_aver)).shape)
+  print("torch.mean(torch.abs(log - logits_aver)).shape")
+  print(torch.mean(torch.abs(log - logits_aver)).shape)
+  print("torch.mean(torch.abs(log - logits_aver))")
+  print(torch.mean(torch.abs(log - logits_aver)))
+  '''
+
+  arr = torch.Tensor(arr).to(device)
+  #print("arr.shape")
+  #print(arr.shape)
+  #arr = torch.array([arr, list(np.arange(len(arr)))])
+  #arr = arr.transpose()
+  #arr = arr.sort(key = lambda arr: arr[0])
+  #for i in range(len(arr)):
+  #  arr[i] = list(arr[i])
+  #arr = np.array(arr)
+  #arr.T
+  if batchsize<(n_class-5)*2:
+      sample_num = batchsize
+  else: sample_num = (n_class-5)*2
+
+  for_one_hot = torch.Tensor([list(i).index(max(i)) for i in label[arr.sort(0)[1][:sample_num]]])
+  #print("for_one_hot", for_one_hot)
+    #sample return
+  return images[arr.sort(0)[1][:sample_num]].to(device), nn.functional.one_hot(for_one_hot.to(torch.int64), num_classes = n_class).to(device)
 
 
 #########
@@ -361,10 +468,12 @@ scaler = StandardScaler()
 
 # Placeholder to store results for each task and each run
 all_results = {task: [] for task in range(nb_task)}
+logits_arr = []
+logits_aver = 0
 
-for seed in seeds:
-    X_train, Y_train = shuffle_data(X_train, Y_train, seed)
+X_train, Y_train = shuffle_data(X_train, Y_train)
 
+<<<<<<< HEAD:Main_Logits.py
     C = Classifier()
     C.train()
     C.to(device)
@@ -374,98 +483,103 @@ for seed in seeds:
     criterion = nn.CrossEntropyLoss()
 
     for task in range(nb_task):
+=======
+for task in range(nb_task):
+>>>>>>> 825518fc14f3cc3126dc9359f210ef62cb88d67b:main_logits.py
         
-        new_f = open('duplicate', 'a')
-        new_f.write(' '.join(['task', str(task), '\n']))
-        new_f.close()
+    new_f = open('duplicate', 'a')
+    new_f.write(' '.join(['task', str(task), '\n']))
+    new_f.close()
 
-        n_class = init_classes + task * n_inc
+    n_class = init_classes + task * n_inc
 
         # Load data for the current task
-        X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
-        nb_batch = int(len(X_train_t)/batchsize)
-        train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
-        X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
+    X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
+    nb_batch = int(len(X_train_t)/batchsize)
+    print("nb_batch", nb_batch)
+    train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
+    X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
-        all_preds = []
-        all_labels = []
+    all_preds = []
+    all_labels = []
 
-        if task > 0:
-            C = C.expand_output_layer(init_classes, n_inc, task)
-            C = C
-            C.to(device)
 
-        metrics_per_epoch = [] # Placeholder for metrics per epoch
+    C = C.expand_output_layer(init_classes, n_inc, task)
+    C = C
+    C.to(device)
 
-        for epoch in range(epoch_number):
+    metrics_per_epoch = [] # Placeholder for metrics per epoch
+    for epoch in range(epoch_number):
 
-            train_loss = 0.0
-            train_acc = 0.0
+        train_loss = 0.0
+        train_acc = 0.0
 
-            new_f = open('duplicate', 'a')
-            new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
-            new_f.close()
+        new_f = open('duplicate', 'a')
+        new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
+        new_f.close()
 
-            for n, (inputs, labels) in enumerate(train_loader):
+        for n, (inputs, labels) in enumerate(train_loader):
         
-                inputs = inputs.float()
-                labels = labels.float()
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+            inputs = inputs.float()
+            labels = labels.float()
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
-                if task > 0 :
+            if task > 0 :
                     # We concat a batch of previously learned data.
                     # the more there are past tasks more data need to be regenerated.
-                    replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class, task=task)
-                    inputs=torch.cat((inputs,replay),0)
-                    labels=torch.cat((labels,re_label),0)
-                outputs, loss = run_batch(C,C_optimizer, inputs, labels)
+                replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class, task=task, logits_aver = logits_aver)
+                inputs=torch.cat((inputs,replay),0)
+                labels=torch.cat((labels,re_label),0)
+            outputs, loss = run_batch(C,C_optimizer, inputs, labels)
 
-                train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
-                _, preds = torch.max(outputs, 1)
-                class_label = torch.argmax(labels.data, dim=-1)
-                train_acc += torch.sum(preds == class_label)
+            train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
+            _, preds = torch.max(outputs, 1)
+            class_label = torch.argmax(labels.data, dim=-1)
+            train_acc += torch.sum(preds == class_label)
 
                 # Collecting all predictions and labels
-                all_preds.append(preds.cpu().numpy())
-                all_labels.append(class_label.cpu().numpy())
+            all_preds.append(preds.cpu().numpy())
+            all_labels.append(class_label.cpu().numpy())
+            if epoch == epoch_number-1:
+                logits_arr.append(C.get_logits(inputs))
+            print("\r", task, "task", epoch+1, "epoch", n, "batch", end="")
             
-            new_f = open('duplicate', 'a')
-            new_f.write('\n')
-            new_f.close()
+        new_f = open('duplicate', 'a')
+        new_f.write('\n')
+        new_f.close()
             
-            print("epoch:", epoch+1)
-            train_loss = train_loss / len(X_train_t)
-            train_acc = float(train_acc / len(X_train_t))
-            print("train_loss: ", train_loss)
-            print("train_acc: ", train_acc)
-            metrics_per_epoch.append(train_acc)
+        print("epoch:", epoch+1)
+        train_loss = train_loss / len(X_train_t)
+        train_acc = float(train_acc / len(X_train_t))
+        print("train_loss: ", train_loss)
+        print("train_acc: ", train_acc)
+        metrics_per_epoch.append(train_acc)
+            
 
-        G_saved = deepcopy(G)
-        C_saved = deepcopy(C)
-        all_results[task].append(metrics_per_epoch)
+    G_saved = deepcopy(G)
+    C_saved = deepcopy(C)
+    all_results[task].append(metrics_per_epoch)
+    #print("logits_arr.shape")
+    #print(torch.stack(logits_arr).shape)
+    logits_aver = torch.mean(torch.stack(logits_arr, dim=0), dim=0)
+    logits_aver = torch.mean(logits_aver, dim = 0)
+    #print("logits_aver.shape")
+    #print(logits_aver.shape)
 
-    ####################
-    # Confusion Matrix #
-    ####################
-
-        # After epoch, flatten the lists and calculate confusion matrix
-        all_pres_flat = np.concatenate(all_preds)
-        all_labels_flat = np.concatenate(all_labels)
-        # Compute confusion matrix
-        cm = confusion_matrix(all_labels_flat, all_pres_flat)
-        cm_df = pd.DataFrame(cm)
-        cm_df.to_csv(f'confusion_matrix_task{task}_seed{seed}.csv', index=False)
-
-        sns.heatmap(cm, annot=True, cmap='Blues')
-        plt.xlabel('Predicted')
-        plt.ylabel('True')
-        plt.show()
+    #logits_arr = copy.deepcopy(torch.Tensor(logits_arr_new))
+    #logits_arr = list(logits_arr)
+    #print("logits_arr")
+    #print(logits_arr)
+    #print("logits_arr_new")
+    #print(logits_arr_new)
+    logits_arr = []
 
     ########
     # Test #
     ########
 
+<<<<<<< HEAD:Main_Logits.py
         with torch.no_grad():
                 accuracy = test(model=C, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler, seed=seed)
                 ls_a.append(accuracy)
@@ -479,19 +593,20 @@ for seed in seeds:
 #########
 # Plots #
 #########
+=======
+    with torch.no_grad():
+            
+        accuracy = test(model=C, x_train = X_train_t, y_train = Y_train_t, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
+        ls_a.append(accuracy)
+>>>>>>> 825518fc14f3cc3126dc9359f210ef62cb88d67b:main_logits.py
 
-save_dir = '/home/02mjpark/ConvGAN/experiment_results'
-os.makedirs(save_dir, exist_ok=True)
+    print("task", task, "done")
 
-for task in range(nb_task):
-    task_results = all_results[task]
-    for i, metrics_list in enumerate(task_results):
-        seed_index = i // 3 # num_experiments = 3
-        experiment_index = i % 3
-    
-        metrics_df = pd.DataFrame(metrics_list, columns=['Accuracy'])
-        metrics_df.to_csv(os.path.join(save_dir, f'metrics_task{task}_seed_{seeds[seed_index]}_exp_{experiment_index+1}.csv'), index=False)
+    if task == nb_task-1:
+        print("The Accuracy for each task:", ls_a)
+        print("The Global Average:", sum(ls_a)/len(ls_a))
 
+<<<<<<< HEAD:Main_Logits.py
 for task in range(nb_task):
     task_results = all_results[task]
     all_metrics = np.array(task_results) # Shape: (num_experiments, n_epochs)
@@ -515,3 +630,5 @@ for task in range(nb_task):
 # PATH = " 모델 저장할 경로 .pt"    # 모델 저장할 경로로 수정
 # torch.save(C.state_dict(), PATH)
 # joblib.dump(scaler, ' scaler 저장 경로 .pkl')   # scaler 저장할 경로로 수정
+=======
+>>>>>>> 825518fc14f3cc3126dc9359f210ef62cb88d67b:main_logits.py

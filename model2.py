@@ -292,7 +292,7 @@ class Classifier(nn.Module):
 
     def predict(self, x_data):
         result = self.forward(x_data)
-        result = self.softmax(result)
+        #result = self.softmax(result)
         return result
         # return torch.argmax(z,axis=1) #가장 큰 인덱스 리턴
 

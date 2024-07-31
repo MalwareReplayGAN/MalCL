@@ -86,12 +86,13 @@ init_classes = 50
 final_classes = 100
 n_inc = 5
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
-batchsize = 128
+batchsize = 256
 lr = 0.001
-epoch_number = 10
+epoch_number = 100
 z_dim = 62
 k = 2
-
+momentum = 0.9
+weight_decay = 0.000001
 ############################################
 # data random arange #
 #############################################
@@ -100,7 +101,7 @@ k = 2
 import random
 import copy
 import matplotlib.pyplot as plt
-
+'''
 data_per_class = []
 
 for i in range(final_classes):
@@ -112,12 +113,16 @@ x = np.arange(final_classes)
 plt.bar(x, data_per_class)
 
 plt.show()
-
+'''
+#################################################
 
 #class_arr = np.arange(final_classes)
 class_arr_task_1 = np.arange(init_classes)
 class_arr_next_tasks = np.arange(init_classes, final_classes)
-random.shuffle(class_arr_next_tasks)
+indices = torch.randperm(50)
+class_arr_next_tasks = torch.index_select(torch.Tensor(class_arr_next_tasks), dim=0, index=indices)
+class_arr_next_tasks = np.array(class_arr_next_tasks)
+
 class_arr = np.concatenate((class_arr_task_1, class_arr_next_tasks), axis = 0)
 class_arr = list(class_arr)
 Y_train_ = copy.deepcopy(Y_train)
@@ -127,28 +132,11 @@ for i in range(init_classes, final_classes):
   Y_train[np.where(Y_train_ == class_arr[i])] = i
   Y_test[np.where(Y_test_ == class_arr[i])] = i
 
+####################################################
+
+
 print("class_arr")
 print(class_arr)
-
-
-
-
-data_per_class_after = []
-
-for i in range(final_classes):
-  data_per_class_after.append(list(Y_train).count(i))
-
-print("after random")
-
-x = np.arange(final_classes)
-plt.bar(x, data_per_class_after)
-
-plt.show()
-
-
-for i in range(final_classes):
-  if data_per_class[class_arr[i]] != data_per_class_after[i]:
-     print("the amount of data is not same as before random change")
 
 
 
@@ -178,7 +166,7 @@ if use_cuda:
 '''
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
-C_optimizer = optim.Adam(C.parameters(), lr=lr)
+C_optimizer = optim.SGD(C.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
 criterion = nn.CrossEntropyLoss()
 BCELoss = nn.BCELoss()
@@ -189,12 +177,9 @@ BCELoss = nn.BCELoss()
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
-      # print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
 
-      # y_real and y_fake are the label for fake and true data
       y_real_ = Variable(torch.ones(x_.size(0), 1))
       y_fake_ = Variable(torch.zeros(x_.size(0), 1))
-      # print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
 
       if use_cuda:
         y_real_, y_fake_ = y_real_.to(device), y_fake_.to(device)
@@ -209,16 +194,11 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update D network
       D_optimizer.zero_grad()
 
-      D_real = D(x_)
-      # print("D_real shape", D_real.shape) # [16, 1]
-      # print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
+      D_real = D(x_) 
       D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
       G_ = G(z_)
-      # print('G_ shape', G_.shape) # 16, 2381
       D_fake = D(G_)
-      # print("D_fake shape", D_fake.shape) # 16, 1
-      # print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape) # 16, 1
       D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
       D_loss = D_real_loss + D_fake_loss
@@ -239,7 +219,6 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update C
 
       C_optimizer.zero_grad()
-      # print("y_ shape", y_.shape) # 16
       output = C(x_)
       if use_cuda:
          output = output.to(device)
@@ -312,43 +291,18 @@ def get_replay_with_label_no_select(generator, classifier, batchsize, n_class):
 G.reinit()
 D.reinit()
 
-import datetime
-result_name = datetime.datetime.now()
-date_str = result_name.strftime("%Y.%m.%d.%H:%M:%S")
-print(date_str)
-result_name = "result_" + date_str
-result_f = open(result_name, '+w')
-result_f.write("")
-result_f.close()
-
 test_accuracy_array = []
-new_f = open('duplicate', '+w')
-new_f.write("")
-new_f.close()
-
 scaler = StandardScaler()
 
 for task in range(nb_task):
-  new_f = open('duplicate', 'a')
-  new_f.write(' '.join(['task', str(task), '\n']))
-  new_f.close()
-
-  result_f = open(result_name, 'a')
-  result_f.write(' '.join(['task', str(task), '\n']))
-  result_f.close()
-
   n_class = init_classes + task * n_inc
+    
   # Load data for the current task
-  print("get_iter_train_dataset")
   X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
   nb_batch = int(len(X_train_t)/batchsize)
   print("nb_batch", nb_batch)
-  print("len(X_train_t)", len(X_train_t))
-  print("len(X_train_t[0])", len(X_train_t[0]))
-  print("get_dataloader")
   train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler = scaler)
-  print("get_iter_test_dataset")
-  X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
+  X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
     train_loss = 0.0
@@ -357,9 +311,6 @@ for task in range(nb_task):
     new_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
     new_f.close()
 
-#    result_f = open(result_name, 'a')
-#    result_f.write(' '.join(['task', str(task), '/ epoch', str(epoch), ': ']))
-#    result_f.close()
 
     for n, (inputs, labels) in enumerate(train_loader):
       
@@ -372,24 +323,16 @@ for task in range(nb_task):
         # We concat a batch of previously learned data.
         # the more there are past tasks more data need to be regenerated.
           replay, re_label = get_replay_with_label(G_saved, C_saved, batchsize, n_class=n_class)
-          #print("len(labels)", len(labels[0]))
-          #print("len(re_label)", len(re_label[0]))
           inputs=torch.cat((inputs,replay),0)
           labels=torch.cat((labels,re_label),0) 
 
       C = C.expand_output_layer(init_classes, n_inc, task)
       C = C
       C.to(device)
-#        print("before run_batch n", n)
       outputs, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
-#        print("after run_batch n", n)
       train_loss += loss.item() * inputs.size(0) # calculate training loss and accuracy
       _, preds = torch.max(outputs, 1)
-#        print("preds", preds)
-#        print("labels.data", labels.data)
       class_label = torch.argmax(labels.data, dim=-1)
-#        print("class_label", class_label)
-#        print("torch.sum(preds == labels.data)", torch.sum(preds == class_label))
       train_acc += torch.sum(preds == class_label)
 
       nb_per_10 = int(nb_batch/10)
@@ -426,7 +369,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class, device = device, scaler = scaler)
+      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
       test_accuracy_array.append(ls_accuracy)
       test_result = "test_acc: " + str(ls_accuracy) + "\n"
       result_f = open(result_name, 'a')
