@@ -19,7 +19,7 @@ use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda")
-torch.manual_seed(0)
+torch.manual_seed(10)
 
 if torch.cuda.is_available():
     device_count = torch.cuda.device_count()
