@@ -35,7 +35,7 @@ else:
 #####################################
 # Declarations and Hyper-parameters #
 #####################################
-seeds = [10, 20, 30]
+seeds = [10]
 init_classes = 50
 final_classes = 100
 n_inc = 5
@@ -467,7 +467,7 @@ for seed in seeds:
     ########
 
         with torch.no_grad():
-                accuracy = test(model=C, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler)
+                accuracy = test(model=C, x_test=X_test_t, y_test=Y_test_t, n_class=n_class, device = device, scaler = scaler, seed=seed)
                 ls_a.append(accuracy)
 
         print("task", task, "done")

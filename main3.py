@@ -9,6 +9,7 @@ import numpy as np
 import pandas
 from sklearn.preprocessing import StandardScaler
 import joblib
+import torch.utils
 from model import Generator, Discriminator, Classifier
 from data_ import get_ember_train_data, extract_100data, oh
 
@@ -53,7 +54,7 @@ if torch.cuda.is_available():
 else:
    print("Cannot use GPU.")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 ##############
 # EMBER DATA #
@@ -61,11 +62,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 data_dir = '/home/02mjpark/continual-learning-malware/ember_data/EMBER_CL/EMBER_Class'
 X_train, Y_train = get_ember_train_data(data_dir)
-X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
+# X_train_100, Y_train_100 = extract_100data(X_train, Y_train)
 # Y_train_oh = oh(Y_train)
 # Y_train_100_oh = oh(Y_train_100)
-feats_length= 2381
-num_training_samples = 303331
+feats_length = 2381
+# num_training_samples = 303331
 
 #####################################
 # Declarations and Hyper-parameters #
@@ -95,6 +96,10 @@ C = Classifier()
 #     D.to(device)
 #     C.to(device)
 
+G = nn.DataParallel(G).cuda()
+D = nn.DataParallel(D).cuda()
+C = nn.DataParallel(C).cuda()
+
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
 C_optimizer = optim.Adam(C.parameters(), lr=lr)
@@ -114,7 +119,10 @@ BCELoss = nn.BCELoss()
 #        end = init_classes + task * nb_inc
 #        selected_indices = np.where((y_train >= start) & (y_train < end))
 #        return x_train[selected_indices], y_train_oh[selected_indices]
-    
+
+#############
+# Functions #
+#############
 
 def get_iter_dataset(x_train, y_train, task, nb_inc=None):
    if task is not None:
@@ -129,12 +137,10 @@ def get_iter_dataset(x_train, y_train, task, nb_inc=None):
 
 def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       x_ = x_.view([-1, feats_length])
-      # print("x_ shape", x_.shape) # [batchsize, feats_length] 16, 2381
 
       # y_real and y_fake are the label for fake and true data
       y_real_ = Variable(torch.ones(x_.size(0), 1))
       y_fake_ = Variable(torch.zeros(x_.size(0), 1))
-      # print("y_real_shape", y_real_.shape) # [batchsize, 1] 16, 1
 
       if use_cuda:
         y_real_, y_fake_ = y_real_.to(device), y_fake_.to(device)
@@ -150,15 +156,10 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       D_optimizer.zero_grad()
 
       D_real = D(x_)
-      # print("D_real shape", D_real.shape) # [16, 1]
-      # print("y_real_[:x_.size(0)].shape: ", y_real_[:x_.size(0)].shape) # [16, 1]
       D_real_loss = BCELoss(D_real, y_real_[:x_.size(0)])
 
       G_ = G(z_)
-      # print('G_ shape', G_.shape) # 16, 2381
       D_fake = D(G_)
-      # print("D_fake shape", D_fake.shape) # 16, 1
-      # print("y_fake_[:x_.size(0)] shape", y_fake_[:x_.size(0)].shape) # 16, 1
       D_fake_loss = BCELoss(D_fake, y_fake_[:x_.size(0)])
 
       D_loss = D_real_loss + D_fake_loss
@@ -179,7 +180,6 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       # update C
 
       C_optimizer.zero_grad()
-      # print("y_ shape", y_.shape) # 16
       output = C(x_)
       if use_cuda:
          output = output.to(device)
@@ -267,13 +267,13 @@ def get_replay_with_label(generator, classifier, batchsize):
 
 
 # We reinit D and G to not cheat
-G.reinit()
-D.reinit()
+# G.reinit()
+# D.reinit()
 
 
-# G = nn.DataParallel(G)
-# D = nn.DataParallel(D)
-# C = nn.DataParallel(C)
+G = nn.DataParallel(G, device_ids=[1, 2, 3])
+D = nn.DataParallel(D, device_ids=[1, 2, 3])
+C = nn.DataParallel(C, device_ids=[1, 2, 3])
 
 G.to(device)
 D.to(device)
@@ -284,22 +284,23 @@ D.train()
 C.train()
 
 
-
 for task in range(nb_task):
   # Load data for the current task
   x_, y_ = get_iter_dataset(X_train, Y_train, task=task, nb_inc=nb_inc)
   y_oh = oh(y_, num_classes=init_classes+nb_inc*task)
   x_ = scaler.fit_transform(x_)
   nb_batch = int(len(x_)/batchsize)
-  
+
+  train_loader = torch.utils.data.DataLoader()
+
   for epoch in range(epoch_number):
     for index in range(nb_batch):
       x_i = torch.FloatTensor(x_[index*batchsize:(index+1)*batchsize])
       y_i = torch.Tensor(y_oh[index*batchsize:(index+1)*batchsize])
       y_i = y_i.float()
 
-      x_i = x_i.to(device)
-      y_i = y_i.to(device)
+      # x_i = x_i.to(device)
+      # y_i = y_i.to(device)
 
       # print(x_i.shape) # 64, 2381
       # print(y_i.shape) # 64, 20/40/60/
@@ -331,3 +332,30 @@ for task in range(nb_task):
 PATH = "/home/02mjpark/ConvGAN/SAVE/mdl.pt"
 torch.save(C.state_dict(), PATH)
 joblib.dump(scaler, '/home/02mjpark/ConvGAN/SAVE/scaler_main3.pkl')
+
+
+
+def get_dataloader(x, y, batch_size, train_data=True):
+    # manage class imbalance issue
+    y = np.array(y, dtype=int)
+    
+    class_sample_count = np.array([len(np.where(y == t)[0]) for t in np.unique(y)])
+
+    weight = 1. / class_sample_count
+    samples_weight = np.array([weight[t] for t in y])
+
+    samples_weight = torch.from_numpy(samples_weight).float()
+    sampler = torch.utils.data.WeightedRandomSampler(samples_weight, len(samples_weight), replacement=True)
+
+    x_ = torch.from_numpy(x).type(torch.FloatTensor)
+    y_ = torch.from_numpy(y).type(torch.FloatTensor)
+
+    x_ = scaler.fit_transform(x_)
+    y_oh = oh(y_, num_classes=init_classes+nb_inc*task)
+
+    data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
+
+    if train_data:
+       trainloader = torch.utils.data.DataLoader(data_tensored, batch_size=batch_size, num_workers=1, sampler=sampler, )
+       return trainloader
+    

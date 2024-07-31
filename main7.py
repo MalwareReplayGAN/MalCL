@@ -50,7 +50,7 @@ from torch.utils.data import TensorDataset
 use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
-device = torch.device("cuda:1" if use_cuda else "cpu")
+device = torch.device("cuda:0" if use_cuda else "cpu")
 torch.manual_seed(0)
 
 if torch.cuda.is_available():
@@ -87,6 +87,8 @@ lr = 0.001
 epoch_number = 50
 z_dim = 62
 k = 2
+
+scaler_train = StandardScaler()
 
 ##########
 # Models #
@@ -183,7 +185,7 @@ def run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, x_, y_):
       C_loss.backward()
       C_optimizer.step()
 
-      return output
+      return output, C_loss
 
 
 def get_replay_with_label(generator, classifier, batchsize, n_class):
@@ -219,11 +221,15 @@ for task in range(nb_task):
 
   # Load data for the current task
   X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=n_class, n_inc=n_inc, task=task)
-  train_loader, scaler_train = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class)
+  train_loader, scaler_train = get_dataloader(X_train_t, Y_train_t, batchsize=batchsize, n_class=n_class, scaler=scaler_train)
   
   X_test, Y_test = get_iter_test_dataset(X_test, Y_test, n_class=n_class)
 
   for epoch in range(epoch_number):
+
+    train_accuracy = 0.0
+    train_loss = 0.0
+
     for inputs, labels in train_loader:
         
         inputs = inputs.float()
@@ -243,8 +249,15 @@ for task in range(nb_task):
         C = C
         C.to(device)
         
-        run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
-    
+        # Calculate the train accuracy and the train loss
+        output, loss = run_batch(G, D, C, G_optimizer, D_optimizer, C_optimizer, inputs, labels)
+        train_loss += loss.item() * inputs.size(0)
+        _, preds = torch.max(output, 1)
+        class_label = torch.argmax(labels.data, dim=-1)
+        train_accuracy += torch.sum(preds == class_label)
+
+    train_loss = train_loss / len(X_train_t)
+    train_accuracy = float(train_accuracy / len(X_train_t))
     print("epoch:", epoch)
 
   G_saved = deepcopy(G)
@@ -253,7 +266,7 @@ for task in range(nb_task):
   # test
     
   with torch.no_grad():
-      ls_accuracy = test(model=C_saved, x_train=X_train, y_train=Y_train, x_test=X_test, y_test=Y_test, n_class=n_class)
+      ls_accuracy = test(model=C_saved, scaler=scaler_train, x_test=X_test, y_test=Y_test, n_class=n_class)
   print("task", task, "done")
 
   if task == nb_task-1:
