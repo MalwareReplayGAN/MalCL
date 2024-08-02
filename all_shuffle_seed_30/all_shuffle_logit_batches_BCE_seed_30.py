@@ -27,7 +27,7 @@ use_cuda = True
 
 use_cuda = use_cuda and torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-torch.manual_seed(10)
+torch.manual_seed(30)
 
 if torch.cuda.is_available():
     device_count = torch.cuda.device_count()
