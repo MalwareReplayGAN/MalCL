@@ -55,9 +55,9 @@ num_training_samples = 257023
 # # Declarations and Hyper-parameters #
 # #####################################
 
-init_classes = 50
-final_classes = 100
-n_inc = 5
+init_classes = 10
+final_classes = 18
+n_inc = 2
 nb_task = int(((final_classes - init_classes) / n_inc) + 1)
 batchsize = 256
 lr = 0.001

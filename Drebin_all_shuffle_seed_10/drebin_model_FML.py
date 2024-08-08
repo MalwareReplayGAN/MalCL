@@ -142,41 +142,8 @@ class Classifier(nn.Module):
     def __init__(self):
         super(Classifier, self).__init__()
 
-        # self.input_features = 2381
-        # self.input_channel = 1
-        # self.output_dim = 20
-        # self.output_dim = 20
-        # self.drop_prob = 0.5
-
-        # self.fc1 = nn.Linear(self.input_features, 1024)
-        # self.fc1_bn = nn.BatchNorm1d(1024)
-        # self.fc1_drop = nn.Dropout(self.drop_prob)
-        # self.act1 = nn.ReLU()
-        
-        # self.fc2 = nn.Linear(1024, 512)
-        # self.fc2_bn = nn.BatchNorm1d(512)
-        # self.fc2_drop = nn.Dropout(self.drop_prob)
-        # self.act2 = nn.ReLU()
-        
-        # self.fc3 = nn.Linear(512, 256)
-        # self.fc3_bn = nn.BatchNorm1d(256)
-        # self.fc3_drop = nn.Dropout(self.drop_prob)
-        # self.act3 = nn.ReLU()
-        
-        # self.fc4 = nn.Linear(256, 128)
-        # self.fc4_bn = nn.BatchNorm1d(128)
-        # self.fc4_drop = nn.Dropout(self.drop_prob)
-        # self.act4 = nn.ReLU()
-
-        # self.fc5 = nn.Linear(128, self.output_dim)
-        # self.fc5_bn = nn.BatchNorm1d(self.output_dim)
-        # self.fc5_drop = nn.Dropout(0.5)
-        # self.act5 = nn.ReLU()
-
-        # self.softmax = nn.Softmax()
-
         self.input_features = 2439
-        self.output_dim = 50
+        self.output_dim = 10
         self.drop_prob = 0.5
 
         self.block1 = nn.Sequential(
@@ -207,34 +174,6 @@ class Classifier(nn.Module):
         self.softmax = nn.Softmax()
 
     def forward(self, x):
-        # x = x.view(-1, self.input_features)
-
-        # x = self.fc1(x)
-        # x = self.fc1_bn(x)
-        # x = self.fc1_drop(x)
-        # x = self.act1(x)
-
-        # x = self.fc2(x)
-        # x = self.fc2_bn(x)
-        # x = self.fc2_drop(x)
-        # x = self.act2(x)
-
-        # x = self.fc3(x)
-        # x = self.fc3_bn(x)
-        # x = self.fc3_drop(x)
-        # x = self.act3(x)
-
-        # x = self.fc4(x)
-        # x = self.fc4_bn(x)
-        # x = self.fc4_drop(x)
-        # x = self.act4(x)
-        
-        # x = self.fc5(x)
-        # x = self.fc5_bn(x)
-        # x = self.fc5_drop(x)
-        # x = self.act5(x)
-
-        # x = self.softmax(x)
         
         # Get the original shape of the input tensor
         original_shape = x.size()
@@ -284,10 +223,6 @@ class Classifier(nn.Module):
 
         return self
     
-    # def update_output_dim(self, init_classes, nb_inc, task):
-    #     self.output_dim = init_classes + nb_inc * task
-    #     return self.output_dim
-
     def predict(self, x_data):
         result = self.forward(x_data)
         
