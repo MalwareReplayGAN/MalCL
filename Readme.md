@@ -27,10 +27,20 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 ### Architecture
 ---
 * Generator
+
+
 ![Generator](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Generator.png)
+
+
 * Discriminator
+
+  
 ![Discriminator](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Discriminator.png)
+
+
 * Classifier
+
+  
 ![Classifier](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Classifier.png)
 
 
