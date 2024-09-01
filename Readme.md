@@ -18,6 +18,21 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 * conda version 4.7.12
 * python version 3.8.13
 
+
+### Pipeline
+---
+![pipeline](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/pipeline_new.png)
+
+
+### Architecture
+---
+![Generator](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Generator.png)
+![Discriminator](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Discriminator.png)
+![Classifier](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Classifier.png)
+
+
+
 ### Author
+---
 
 
