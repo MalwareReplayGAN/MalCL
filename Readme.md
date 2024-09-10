@@ -47,5 +47,4 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 
 ### Author
 ---
-Jimin Park, Minji Park, AHyun Ji, Mohammad Saidur Rahman, Se Eun Oh
 
