@@ -46,7 +46,9 @@ The AZ-Class dataset contains 285,582 samples from 100 Android malware families,
   
 ![Classifier](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/Classifier.png)
 
+
 ### Results
+---
 
 ![Table](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/table.png)
 ### Author
