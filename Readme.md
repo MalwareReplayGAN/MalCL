@@ -8,11 +8,11 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 
 ### Dataset
 ---
-* EMBER 2018 dataset
+* EMBER 2018 dataset    
 We use the 2018 EMBER dataset, known for its challenging classification tasks, focusing on a subset of 337,035 malicious Windows PE files labeled by the top 100
 malware families, each with over 400 samples. Features include file size, PE and COFF header details, DLL characteristics, imported and exported functions, and properties
 like size and entropy, all computed using the feature hashing trick.
-* AZ-Class
+* AZ-Class    
 The AZ-Class dataset contains 285,582 samples from 100 Android malware families, each with at least 200 samples. We extracted Drebin features (Arp et al.2014) from the apps, covering eight categories like hardware access, permissions, API calls, and network addresses.
 
 ### Environment
