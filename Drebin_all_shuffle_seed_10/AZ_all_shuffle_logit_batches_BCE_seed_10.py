@@ -42,7 +42,7 @@ else:
 
 # Call the Ember Data
 
-data_dir =  'path'
+data_dir =  '/home/02mjpark/downloads/AZ-Class-with-Drebin-Features/AZ-Class-with-Drebin-Features'
 X_train, Y_train = get_ember_train_data(data_dir)
 X_test, Y_test, Y_test_onehot = get_ember_test_data(data_dir)
 
