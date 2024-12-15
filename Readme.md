@@ -8,7 +8,7 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 
 ### Dataset
 ---
-The dataset for the experiments can be downloaded from [here] (https://drive.google.com/drive/folders/1YGmxcQGqu22ZQuZccpD81WUBKHh7c3Jq?usp=sharing)
+The dataset for the experiments can be downloaded from [here](https://drive.google.com/drive/folders/1YGmxcQGqu22ZQuZccpD81WUBKHh7c3Jq?usp=sharing)
 
 * EMBER 2018 dataset    
 We use the 2018 EMBER dataset, known for its challenging classification tasks, focusing on a subset of 337,035 malicious Windows PE files labeled by the top 100
