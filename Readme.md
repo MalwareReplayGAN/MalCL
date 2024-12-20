@@ -54,7 +54,7 @@ The AZ-Class dataset contains 285,582 samples from 100 Android malware families,
 ### Results
 ---
 
-![Table](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/table.png)    
+![Table](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/table2.png)    
 * Comparisons to Baseline and Prior Replay Models Using Ember Dataset. We report the mean accuracy scores (Mean) and minimum (Min) computed from every 11 tasks.    
 
 ![graph](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/EMBERvsAZ.png)    
