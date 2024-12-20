@@ -4,7 +4,7 @@
 
 This repository contains the codes of the paper __MalCL: Leveraging GAN-Based Generative Replay to Combat Catastrophic Forgetting in Malware Classification__
 
-%https://drive.google.com/drive/folders/1YGmxcQGqu22ZQuZccpD81WUBKHh7c3Jq?usp=sharing
+
 
 ### Dataset
 ---
