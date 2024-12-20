@@ -8,7 +8,7 @@ This repository contains the codes of the paper __MalCL: Leveraging GAN-Based Ge
 
 ### Dataset
 ---
-The dataset for the experiments will be available to download from this [Zenodo Data Repository(https://zenodo.org/records/14537891).
+The dataset for the experiments will be available to download from this [Zenodo Data Repository](https://zenodo.org/records/14537891).
 
 * EMBER 2018 dataset    
 We use the 2018 EMBER dataset, known for its challenging classification tasks, focusing on a subset of 337,035 malicious Windows PE files labeled by the top 100
