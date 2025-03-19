@@ -75,9 +75,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py --sample_select L2_B_Mean
 
 ![Table](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/table.png)    
 * Comparisons to Baseline and Prior Replay Models Using Ember Dataset. We report the mean accuracy scores (Mean) and minimum (Min) computed from every 11 tasks.    
-
-![graph](https://github.com/MalwareReplayGAN/MalCL/blob/master/Repo_img/EMBERvsAZ.png)    
-* MalCL Performance on the EMBER and AZ-Class datasets using "FML" and "L1 to Per Class Mean Logit vector".    
+ 
 
 
 
