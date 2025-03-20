@@ -85,7 +85,7 @@ def get_dataloader(x, y, batchsize, n_class, scaler, train = True):
 
     data_tensored = torch.utils.data.TensorDataset(x_, y_oh)
     if train: Loader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1, sampler=sampler)
-    else: Loader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize, num_workers=1)
+    else: Loader = torch.utils.data.DataLoader(data_tensored, batch_size=batchsize)
     
     return Loader, scaler
 
