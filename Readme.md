@@ -6,7 +6,7 @@ This repository contains code of the paper __MalCL: Leveraging GAN-Based Generat
 
 
 ### Dataset
-The dataset for the experiments can be downloaded from [here](https://drive.google.com/drive/folders/1YGmxcQGqu22ZQuZccpD81WUBKHh7c3Jq?usp=sharing)
+The dataset for the experiments can be downloaded from [here](https://drive.google.com/drive/folders/1YGmxcQGqu22ZQuZccpD81WUBKHh7c3Jq?usp=sharing) and [Zenodo Repository](https://zenodo.org/records/14537891)
 
 ---
 
