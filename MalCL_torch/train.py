@@ -111,13 +111,6 @@ def collect_logits(config, C, logits_collect, inputs, labels, batch):
 
 ####################################################################################################
 
-def data_task_joint(config, X_train, Y_train, X_test, Y_test, scaler):
-    X_train_t, Y_train_t = get_iter_train_dataset_joint(X_train,  Y_train, n_class=config.n_class, n_inc=config.n_inc, task=config.task)
-    train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=config.batchsize, n_class=config.n_class, scaler = scaler)
-    X_test_t, Y_test_t = get_iter_test_dataset(X_test, Y_test, n_class=config.n_class)
-    test_loader, _ = get_dataloader(X_test_t, Y_test_t, batchsize=config.batchsize, n_class=config.n_class, scaler = scaler, train=False)
-    return X_train_t, Y_train_t, train_loader, X_test_t, Y_test_t, test_loader, scaler
-
 def data_task(config, X_train, Y_train, X_test, Y_test, scaler):
     X_train_t, Y_train_t = get_iter_train_dataset(X_train,  Y_train, n_class=config.n_class, n_inc=config.n_inc, task=config.task)
     train_loader, scaler = get_dataloader(X_train_t, Y_train_t, batchsize=config.batchsize, n_class=config.n_class, scaler = scaler)
