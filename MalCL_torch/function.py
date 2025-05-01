@@ -47,11 +47,6 @@ def get_iter_train_dataset(x, y, n_class=None, n_inc=None, task=None):
     return x[selected_indices], y[selected_indices]
 
 
-def get_iter_train_dataset_joint(x, y, n_class=None, n_inc=None, task=None):
-    selected_indices = np.where(y < n_class)[0] 
-    return x[selected_indices], y[selected_indices]
-
-
 def get_iter_test_dataset(x, y, n_class):
     selected_indices = np.where(y < n_class)[0] 
     return x[selected_indices], y[selected_indices]
